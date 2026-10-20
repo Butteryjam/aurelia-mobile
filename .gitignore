@@ -1,0 +1,61 @@
+# =============================================================================
+# Aurelia Mobile — Git Ignore Rules
+# =============================================================================
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Expo cache and artifacts
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native builds & keystores
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.keystore
+*.mobileprovision
+
+# Metro & Bundler
+.metro-health-check*
+
+# Debug logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# OS & Editor files
+.DS_Store
+*.pem
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables (CRITICAL: NEVER COMMIT SECRETS)
+.env
+.env*.local
+.env.*
+!.env.example
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Prebuild / Generated Native Directories
+/ios
+/android
+
+# Build outputs & APKs
+*.apk
+*.aab
+*.tar.gz
+*.zip
+build/

@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Aurelia",
+    "slug": "aurelia-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "aurelia",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.aurelia.culinary",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Aurelia to use your camera to photograph culinary creations and recipe cards.",
+        "NSPhotoLibraryUsageDescription": "Allow Aurelia to access your photos to select recipe imagery."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FAF7F2",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "package": "app.aurelia.culinary",
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FAF7F2",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Aurelia to access your photos to select recipe imagery.",
+          "cameraPermission": "Allow Aurelia to use your camera to photograph culinary creations and recipe cards."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "78cce238-b8bd-46bb-9a92-c937b85cffa7"
+      }
+    },
+    "owner": "bamilords-team"
+  }
+}

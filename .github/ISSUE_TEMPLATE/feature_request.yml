@@ -1,0 +1,40 @@
+name: "✨ Feature Request"
+description: "Suggest a culinary idea or mobile enhancement for Aurelia"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We love hearing new ideas to make Aurelia an even more delightful culinary companion!
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a specific culinary workflow, friction, or limitation?
+      placeholder: "e.g. When cooking with messy hands in cook mode, I find it difficult to..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution or capability you would like to see implemented.
+      placeholder: "A clear description of what you want to happen..."
+    validations:
+      required: true
+  - type: textarea
+    id: culinary_context
+    attributes:
+      label: Culinary & User Experience Context
+      description: How does this improve the home cooking, meal planning, or recipe organization experience?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or workarounds you have considered.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any mockups, screenshots, or extra details here.
