@@ -1,40 +1,38 @@
-name: "✨ Feature Request"
-description: "Suggest a culinary idea or mobile enhancement for Aurelia"
+name: Feature Request
+description: Suggest an improvement or new capability for Aurelia Mobile
 title: "[Feature]: "
-labels: ["enhancement"]
+labels: ["enhancement", "mobile"]
 body:
   - type: markdown
     attributes:
       value: |
-        We love hearing new ideas to make Aurelia an even more delightful culinary companion!
+        Feature proposals and improvements are welcome. Please describe your suggestion clearly.
   - type: textarea
     id: problem
     attributes:
-      label: Problem Statement
-      description: Is your feature request related to a specific culinary workflow, friction, or limitation?
-      placeholder: "e.g. When cooking with messy hands in cook mode, I find it difficult to..."
+      label: The Problem Being Experienced
+      description: Describe the limitation or difficulty you encountered in your cooking or planning workflow.
+      placeholder: e.g. When cooking multiple dishes simultaneously, switching between recipes loses timer context...
     validations:
       required: true
   - type: textarea
-    id: solution
+    id: proposed_improvement
     attributes:
-      label: Proposed Solution
-      description: Describe the solution or capability you would like to see implemented.
-      placeholder: "A clear description of what you want to happen..."
+      label: Proposed Improvement
+      description: Describe the change or capability you would like to see.
+      placeholder: e.g. Add a persistent timer bar at the bottom of the screen...
     validations:
       required: true
   - type: textarea
-    id: culinary_context
+    id: expected_behavior
     attributes:
-      label: Culinary & User Experience Context
-      description: How does this improve the home cooking, meal planning, or recipe organization experience?
+      label: Expected Behavior
+      description: How should the feature behave from a user's perspective?
+      placeholder: e.g. Tapping on the persistent timer bar should navigate directly back to the active recipe step...
+    validations:
+      required: true
   - type: textarea
-    id: alternatives
+    id: supporting_context
     attributes:
-      label: Alternatives Considered
-      description: Any alternative solutions or workarounds you have considered.
-  - type: textarea
-    id: additional
-    attributes:
-      label: Additional Context
-      description: Add any mockups, screenshots, or extra details here.
+      label: Supporting Context
+      description: Any mockups, alternatives considered, or additional details.

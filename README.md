@@ -1,91 +1,91 @@
-# Aurelia Mobile 🍳✨
+# Aurelia Mobile
 
-> The modern, elegant culinary companion for home chefs and food lovers. Powered by React Native, Expo, TypeScript, and Supabase.
+A mobile client for the Aurelia recipe management system, built with React Native and Expo.
 
-[![CI](https://github.com/Butteryjam/aurelia-mobile/actions/workflows/mobile-ci.yml/badge.svg)](https://github.com/Butteryjam/aurelia-mobile/actions/workflows/mobile-ci.yml)
-[![Expo SDK](https://img.shields.io/badge/Expo-SDK%2057-000020.svg?logo=expo)](https://expo.dev)
-[![React Native](https://img.shields.io/badge/React%20Native-0.86-61DAFB.svg?logo=react)](https://reactnative.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6.svg?logo=typescript)](https://www.typescriptlang.org)
-[![Supabase](https://img.shields.io/badge/Supabase-Auth%20%26%20Postgres-3ECF8E.svg?logo=supabase)](https://supabase.com)
-[![Vitest](https://img.shields.io/badge/Vitest-152%20Tests%20Passing-6E9F18.svg?logo=vitest)](https://vitest.dev)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Expo SDK](https://img.shields.io/badge/Expo-SDK_57-4630EB?style=flat-square&logo=expo&logoColor=white)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React_Native-0.86-20232A?style=flat-square&logo=react&logoColor=61DAFB)](https://reactnative.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 ---
 
 ## Overview
 
-**Aurelia Mobile** is the mobile application of the [Aurelia](https://github.com/Butteryjam/aurelia) culinary ecosystem. Crafted with a refined warm-canvas aesthetic (`#FAF7F2`), editorial typography (*Playfair Display* & *DM Sans*), and smooth micro-interactions, Aurelia delivers a focused culinary experience right in the kitchen.
-
-The mobile app operates autonomously as an independent React Native / Expo application, interfacing with Supabase for data persistence and authentication, and communicating with the Aurelia Next.js API for AI-assisted culinary operations.
+Aurelia Mobile provides an on-device interface for browsing recipes, managing meal plans, generating shopping lists, and using interactive timers while cooking. It is designed to work alongside the [Aurelia web application](https://github.com/Butteryjam/aurelia), connecting directly to Supabase for database storage and user authentication, and calling the Aurelia web backend for AI-assisted operations.
 
 ---
 
-## Key Features
+## Screenshots
 
-- 🥘 **Smart Recipe Library & Discovery**: Browse, search, filter, and sort your entire culinary catalog with instant full-text filtering and dietary tag navigation.
-- 🧑‍🍳 **AI Sous Chef & Natural Language Chat**: Context-aware culinary assistant that answers recipe questions, suggests substitutions, and provides personalized cooking advice.
-- 📸 **AI Recipe Extraction**: Import recipes seamlessly from photos, screenshots, handwritten recipe cards, or pasted text with automated field structuring.
-- ⏱️ **Interactive Hands-Free Cook Mode**:
-  - Full-screen distraction-free cooking steps.
-  - Built-in multi-stage timers with acoustic cues and haptic feedback.
-  - Screen wake lock to prevent the device from sleeping while your hands are busy.
-  - Dynamic serving scaling with instant ingredient quantity recalculation.
-- 📅 **Visual Meal Planner**: Schedule breakfast, lunch, dinner, and snacks across a weekly calendar with nutritional summaries.
-- 🛒 **Intelligent Shopping List Consolidation**: Automatically consolidate ingredients from recipes and meal plans into grouped grocery categories with unit conversion and checkable aisles.
-- 📚 **Curated Collections & Favorites**: Organize recipes into custom collections (e.g. *Weekend Feasts*, *Quick Dinners*) with cover image customization.
-- 💾 **Offline-Resilient Draft Auto-Save**: Recipe editing and creation automatically persist to local storage to prevent data loss.
-- 🔗 **Universal Deep Linking**: Open recipe and collection links directly into native app screens.
+<!-- App screenshots will be added in a future release. -->
 
 ---
 
-## Architecture & Tech Stack
+## Features
 
+- **Recipe Catalog & Search**: Browse, filter, and search saved recipes by title, cuisine, difficulty level, and tags.
+- **Recipe Management & Draft Persistence**: Create and edit recipes with automatic local draft saving to AsyncStorage, preventing form data loss if navigation is interrupted.
+- **Cook Mode with Screen Wake Lock**: Step-by-step cooking view with multiple concurrent countdown timers and `expo-keep-awake` integration to keep the display active during cooking.
+- **Serving Scaler**: Real-time proportional ingredient quantity adjustment supporting fractional and decimal measurements.
+- **AI Chef Assistant**: Chat interface for recipe questions and culinary advice, authenticated via Supabase JWT and routed through the Aurelia backend.
+- **Recipe Extraction**: Import recipes from pasted text or camera/gallery photos via the backend extraction API.
+- **AI Recipe Modifications**: Apply structured adjustments to recipes (e.g. dietary substitutions, spice adjustments, faster prep) through backend endpoints.
+- **Meal Planning**: Weekly grid layout for breakfast, lunch, dinner, and snack scheduling.
+- **Consolidated Shopping Lists**: Aggregates ingredients from meal plans and individual recipes, grouped by grocery aisle categories with checkable items.
+- **Collections & Favorites**: Organize recipes into named collections and toggle favorites.
+- **Deep Linking**: Configured URL scheme (`aurelia://`) for routing directly to specific recipes and collections.
+- **Theme Support**: Light mode, dark mode, and automatic system theme detection.
+
+> **Note on Data Access**: The mobile client requires an active internet connection to authenticate, read and write data to Supabase, and call AI endpoints. Local caching is currently limited to active recipe form drafts.
+
+---
+
+## Technology Stack
+
+| Technology | Version | Role in Project |
+| :--- | :--- | :--- |
+| **React Native** | `0.86.3` | Cross-platform mobile UI runtime |
+| **Expo** | `~57.0.26` (SDK 57) | Native platform tooling and managed module ecosystem |
+| **Expo Router** | `~57.0.24` | File-based typed routing and deep linking |
+| **TypeScript** | `~6.0.3` | Static type checking and schema enforcement |
+| **Supabase JS** | `^2.117.2` | Authentication session management and PostgreSQL client |
+| **TanStack React Query** | `^5.104.0` | Asynchronous server-state management and query caching |
+| **Zod** | `^4.6.5` | Runtime schema validation and form parsing |
+| **Vitest** | `^3.0.0` | Unit and component test runner |
+| **Lucide React Native** | `^1.48.0` | Vector iconography |
+
+---
+
+## Architecture
+
+The mobile application operates as a client that communicates with two external services:
+
+```text
+┌─────────────────┐       Direct PostgreSQL queries (RLS)
+│  Aurelia Mobile │ ──────────────────────────────────────────► Supabase (Auth & DB)
+│  (React Native) │
+└────────┬────────┘
+         │
+         │ Authenticated HTTP requests (JWT Bearer)
+         ▼
+┌─────────────────────────┐
+│ Aurelia Web API         │ ───► OpenAI / Gemini API (Extraction & Chef Chat)
+│ (Next.js on Vercel)     │
+└─────────────────────────┘
 ```
-aurelia-mobile/
-├── .github/
-│   ├── ISSUE_TEMPLATE/        # Bug report and feature request templates
-│   ├── workflows/             # GitHub Actions CI/CD workflows
-│   └── PULL_REQUEST_TEMPLATE.md
-├── assets/                   # App icons, splash screens, and images
-├── src/
-│   ├── app/                  # Expo Router file-based route hierarchy
-│   ├── components/           # Modular UI components & design system
-│   ├── constants/            # Navigation and configuration constants
-│   ├── features/             # Feature domains (ai, auth, cook-mode, recipes, etc.)
-│   ├── hooks/                # Custom React and Expo hooks
-│   ├── lib/                  # Supabase, API client, and utility modules
-│   ├── shared/               # Self-contained database types and schemas
-│   └── theme/                # Design tokens (colors, typography, spacing)
-├── tests/                    # 17 Vitest suites covering all app domains
-├── scripts/                  # Development and helper scripts
-├── app.json                  # Expo application configuration
-├── eas.json                  # Expo Application Services build configurations
-├── package.json              # Dependencies and script definitions
-├── tsconfig.json             # Strict TypeScript compiler options
-└── vitest.config.ts          # Vitest test runner configuration
-```
 
-| Technology | Purpose |
-| :--- | :--- |
-| **Expo (SDK 57)** | Universal React Native platform & managed build tooling |
-| **Expo Router** | File-based, typed routing with deep-link support |
-| **React Native 0.86** | Cross-platform native mobile runtime |
-| **TypeScript 6.0** | End-to-end static typing and schema verification |
-| **Supabase JS** | Authentication session management & Postgres client |
-| **TanStack React Query** | Asynchronous state management, query caching, and mutations |
-| **Vitest** | Blazing-fast unit and component test runner |
-| **Lucide Icons** | Unified vector iconography |
+1. **Supabase**: Handles user authentication, session persistence (stored in AsyncStorage), and direct CRUD operations for recipes, collections, meal plans, and shopping lists protected by Row Level Security (RLS).
+2. **Aurelia Web Backend**: Privileged operations—such as AI image extraction, chat completions, recipe modifications, and rate limiting—are handled by the Next.js server. The mobile app passes the user's Supabase session access token in the `Authorization` header to authenticate each request.
 
 ---
 
-## Getting Started
+## Installation and Setup
 
 ### Prerequisites
 
 - **Node.js**: `>= 20.x`
 - **npm**: `>= 10.x`
-- **Expo Go** app on your phone, or an Android Studio Emulator / iOS Simulator.
-- (Optional) **EAS CLI**: `npm install -g eas-cli` for cloud builds.
+- An Android device, Android emulator, iOS simulator, or the **Expo Go** application.
 
 ### 1. Clone the Repository
 
@@ -100,87 +100,96 @@ cd aurelia-mobile
 npm install --legacy-peer-deps
 ```
 
+> **Why `--legacy-peer-deps`?** Expo SDK 57 runs on React 19. Certain transitive dev dependencies have strict peer dependency declarations that npm's default resolver flags during resolution.
+
 ### 3. Configure Environment Variables
 
-Create a local `.env` file by copying the template:
+Create a local `.env` file from the example template:
 
 ```bash
 cp .env.example .env
 ```
 
-Configure your endpoints:
+Set the appropriate endpoints for your setup:
 
 ```env
-EXPO_PUBLIC_SUPABASE_URL=https://upzkcqovqstfsizerulx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+# Supabase public credentials (client-safe)
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_publishable_anon_key
+
+# Aurelia Next.js API endpoint
 EXPO_PUBLIC_API_URL=http://localhost:3000
 ```
 
-> 💡 **Note for Android Emulator**: Use `http://10.0.2.2:3000` as `EXPO_PUBLIC_API_URL` to refer to your host computer's localhost.
+#### Network Configuration Guide for `EXPO_PUBLIC_API_URL`
+
+- **Android Emulator**: Set to `http://10.0.2.2:3000` (10.0.2.2 routes to the host machine's localhost).
+- **iOS Simulator**: Set to `http://localhost:3000`.
+- **Physical Android / iOS Device**: Set to your computer's local network IP address (e.g. `http://192.168.1.100:3000`). Both your phone and development computer must be connected to the same Wi-Fi network.
+- **Production Backend**: Set to your deployed instance (e.g. `https://aurelia-gamma-one.vercel.app`).
 
 ---
 
-## Development Scripts
+## Development and Testing Commands
 
 | Command | Action |
 | :--- | :--- |
-| `npm start` | Launch the Expo Metro bundler interactive development server |
-| `npm run android` | Open directly in connected Android device / emulator |
-| `npm run ios` | Open directly in connected iOS simulator |
-| `npm run web` | Run web preview in browser |
-| `npm run typecheck` | Run strict TypeScript compiler verification (`tsc --noEmit`) |
-| `npm test` | Run the full test suite with Vitest (152 tests across 17 suites) |
-| `npm run lint` | Run Expo linter |
+| `npm start` | Start the Expo Metro bundler interactive development server |
+| `npm run android` | Launch the app in a connected Android emulator or device |
+| `npm run ios` | Launch the app in an iOS simulator |
+| `npm run web` | Start the app in a web browser |
+| `npm run typecheck` | Run TypeScript type checking (`tsc --noEmit`) |
+| `npm test` | Run the unit and integration test suite with Vitest |
 
 ---
 
-## Building Native Binaries (EAS)
+## Android Build Instructions
 
-Aurelia Mobile is configured for Expo Application Services (EAS Build).
+The project is configured for building with **Expo Application Services (EAS Build)** via `eas.json`.
 
-### Build Android Standalone APK (Preview / Testing)
+### Prerequisites for Cloud Builds
+
+Install the EAS CLI globally:
+
+```bash
+npm install -g eas-cli
+```
+
+### Build a Standalone Android APK (Testing / Preview)
 
 ```bash
 eas build --platform android --profile preview
 ```
 
-### Build Android App Bundle (Google Play Production)
+### Build an Android App Bundle (Production / Google Play)
 
 ```bash
 eas build --platform android --profile production
 ```
 
-### Build iOS Simulator / Production
+---
 
-```bash
-eas build --platform ios --profile preview
-```
+## Bug Reporting and Feature Requests
+
+This repository follows an **issue-only community model**:
+
+- **Bug Reports & Suggestions**: Anyone is welcome to submit bug reports and feature requests using our [GitHub Issue Templates](https://github.com/Butteryjam/aurelia-mobile/issues/new/choose).
+- **Maintenance & Fixes**: Application development, bug fixes, and releases are maintained directly by the repository owner ([@Butteryjam](https://github.com/Butteryjam)).
+- **Pull Requests**: External pull requests are not actively accepted or automatically merged. If you encounter a problem, opening an issue with clear reproduction steps is the best way to have it addressed.
 
 ---
 
-## Security & Secrets Policy
+## Security
 
-- **Zero Secrets in Git**: No API keys, signing keystores, service-role tokens, or private environment files are tracked in source control.
-- **Client-Safe Variables**: Only public variables prefixed with `EXPO_PUBLIC_` are bundled into the client runtime.
-- **Backend Routing**: All AI provider integrations (OpenAI, Gemini) and privileged database operations route through authenticated server-side endpoints on the Aurelia backend.
-
----
-
-## Contributing
-
-1. Fork the repository.
-2. Create your feature branch: `git checkout -b feature/delightful-feature`.
-3. Verify type safety: `npm run typecheck`.
-4. Ensure all tests pass: `npm test`.
-5. Commit your changes: `git commit -m 'feat: add delightful culinary feature'`.
-6. Push to branch: `git push origin feature/delightful-feature`.
-7. Submit a Pull Request following the PR template.
+- **Client-Safe Variables**: Only public configuration prefixed with `EXPO_PUBLIC_` is included in the client bundle.
+- **Zero Committed Secrets**: `.env` files, private signing keys, keystores, and service-role tokens are explicitly ignored by `.gitignore` and are not committed to source control.
+- **Backend Authentication**: All sensitive AI operations and rate-limited actions require a valid Supabase JWT and are handled server-side.
 
 ---
 
-## Related Repositories
+## Related Project
 
-- **Aurelia Web**: [https://github.com/Butteryjam/aurelia](https://github.com/Butteryjam/aurelia) — The flagship Next.js web application deployed on Vercel.
+- **Aurelia Web**: [https://github.com/Butteryjam/aurelia](https://github.com/Butteryjam/aurelia) — The main Next.js web application and backend API.
 
 ---
 

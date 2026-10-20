@@ -1,38 +1,54 @@
-name: "🐛 Bug Report"
-description: "File a report to help us fix a bug in Aurelia Mobile"
+name: Bug Report
+description: Report a reproducible bug or unexpected behavior in Aurelia Mobile
 title: "[Bug]: "
-labels: ["bug", "triage"]
+labels: ["bug", "mobile"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report an issue with Aurelia Mobile!
-        Please fill out this form as completely as possible to help us triage and resolve it quickly.
-  - type: textarea
-    id: description
+        Please fill out this form to report a bug. Do not include sensitive information such as passwords, tokens, or private credentials.
+  - type: input
+    id: affected_screen
     attributes:
-      label: Bug Description
-      description: A clear and concise description of what the bug is.
-      placeholder: Describe the problem encountered...
+      label: Affected Screen or Feature
+      description: Where in the app does this issue occur?
+      placeholder: e.g. Cook Mode, Recipe Editor, Meal Planner, Search, Shopping List
+    validations:
+      required: true
+  - type: input
+    id: device_info
+    attributes:
+      label: Device and Android Version
+      description: Hardware model and operating system version tested.
+      placeholder: e.g. Google Pixel 7 (Android 14) / Samsung Galaxy S22 (Android 13)
+    validations:
+      required: true
+  - type: input
+    id: app_version
+    attributes:
+      label: App Version / Build
+      description: The version or build number of the application.
+      placeholder: e.g. 1.0.0 (preview build) / Expo SDK 57
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Steps to Reproduce
-      description: Steps to reproduce the behavior.
+      label: Reproduction Steps
+      description: Step-by-step instructions to reproduce the issue.
       placeholder: |
         1. Open the app
         2. Navigate to '...'
-        3. Tap on '....'
-        4. Observe unexpected behavior
+        3. Tap on '...'
+        4. Observe the issue
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
       label: Expected Behavior
-      description: A clear description of what you expected to happen.
+      description: What should have happened.
+      placeholder: e.g. The timer should start counting down and trigger an alert when finished.
     validations:
       required: true
   - type: textarea
@@ -40,38 +56,17 @@ body:
     attributes:
       label: Actual Behavior
       description: What actually happened instead.
+      placeholder: e.g. The app freezes or the timer resets to zero immediately.
     validations:
       required: true
-  - type: dropdown
-    id: platform
-    attributes:
-      label: Platform
-      options:
-        - Android (Physical Device)
-        - Android (Emulator)
-        - iOS (Physical Device)
-        - iOS (Simulator)
-        - Web
-    validations:
-      required: true
-  - type: input
-    id: os_version
-    attributes:
-      label: OS Version & Device Model
-      placeholder: e.g. Android 14, Samsung Galaxy S23 / iOS 17.5, iPhone 15 Pro
-  - type: input
-    id: app_version
-    attributes:
-      label: App & Expo SDK Version
-      placeholder: e.g. Aurelia Mobile v1.0.0, Expo SDK 57
   - type: textarea
-    id: logs
+    id: screenshots
     attributes:
-      label: Logs / Stack Trace
-      description: Any relevant error messages or console logs.
+      label: Relevant Screenshot or Video
+      description: Drag and drop screenshots or screen recordings illustrating the bug.
+  - type: textarea
+    id: error_logs
+    attributes:
+      label: Error Message / Stack Trace
+      description: Any error messages or console output. Redact any sensitive information before submitting.
       render: shell
-  - type: textarea
-    id: additional
-    attributes:
-      label: Additional Context
-      description: Add any other context, screenshots, or screen recordings here.

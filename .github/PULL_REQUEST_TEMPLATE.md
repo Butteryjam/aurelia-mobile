@@ -1,33 +1,15 @@
+> **Note**: Aurelia Mobile is maintained by the repository owner ([@Butteryjam](https://github.com/Butteryjam)). External pull requests are reviewed at the maintainer's discretion and are not automatically merged. For bug reports or feature ideas, please open an issue first.
+
 ## Description
-<!-- Provide a brief summary of the changes introduced by this pull request. -->
+<!-- Provide a clear summary of the change. -->
 
 ## Type of Change
-- [ ] 🐛 Bug fix (non-breaking change fixing an issue)
-- [ ] ✨ New feature (non-breaking change adding culinary/mobile functionality)
-- [ ] 💄 UI/UX Enhancement (visual polish, typography, haptics, micro-animations)
-- [ ] ⚡ Performance optimization
-- [ ] ♻️ Code refactor
-- [ ] 📝 Documentation update
-- [ ] 🔧 Build / CI / Tooling configuration
+- [ ] Bug fix
+- [ ] Feature improvement
+- [ ] Documentation update
+- [ ] Build / Tooling
 
-## Related Issues
-<!-- Closes #123 -->
-
-## Testing Matrix
-Tested and verified on:
-- [ ] Android Physical Device (Model: ________, OS: ________)
-- [ ] Android Emulator (API Level: ________)
-- [ ] iOS Physical Device (Model: ________, iOS: ________)
-- [ ] iOS Simulator (Device: ________)
-- [ ] Web Browser (`npm run web`)
-
-## Visual Verification
-<!-- Attach screenshots, screen recordings, or GIFs showing the change in action. -->
-
-## Quality Checklist
-- [ ] My code adheres to the project's architectural principles and design tokens.
-- [ ] `npm run typecheck` passes with 0 errors.
-- [ ] `npm test` passes with all 152+ tests green.
-- [ ] No secrets, `.env` values, API keys, or private signing credentials are committed.
-- [ ] No generated APKs, AABs, or build artifacts are included.
-- [ ] Added or updated test coverage where appropriate.
+## Testing
+- [ ] `npm run typecheck` passed
+- [ ] `npm test` passed
+- [ ] Tested on Android device or emulator
