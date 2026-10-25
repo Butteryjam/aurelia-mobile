@@ -47,6 +47,7 @@ vi.mock('@/lib/supabase', () => {
         setSession: vi.fn(),
         exchangeCodeForSession: vi.fn(),
         verifyOtp: vi.fn(),
+        signInWithOAuth: vi.fn(),
       },
       storage: {
         from: vi.fn(() => ({
@@ -162,5 +163,11 @@ vi.mock('expo-keep-awake', () => ({
   useKeepAwake: vi.fn(),
   activateKeepAwakeAsync: vi.fn(async () => {}),
   deactivateKeepAwake: vi.fn(),
+}))
+
+// Mock Expo Web Browser
+vi.mock('expo-web-browser', () => ({
+  maybeCompleteAuthSession: vi.fn(),
+  openAuthSessionAsync: vi.fn(async () => ({ type: 'cancel' })),
 }))
 

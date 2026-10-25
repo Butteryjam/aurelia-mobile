@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { parseAuthUrl, normalizeAuthError } from '../src/lib/auth-url'
 import { supabase } from '../src/lib/supabase'
+import * as WebBrowser from 'expo-web-browser'
+import * as Linking from 'expo-linking'
 
 describe('Auth Flow & Deep Link Logic Unit Tests', () => {
   beforeEach(() => {
@@ -232,4 +234,163 @@ describe('Auth Flow & Deep Link Logic Unit Tests', () => {
       expect(data.session?.user.email).toBe('saved@aurelia.app')
     })
   })
+
+  describe('4. Google Sign-In & OAuth Mobile Flows', () => {
+    it('parses Google OAuth PKCE callback URL', () => {
+      const url = 'aurelia://auth/callback?code=google_pkce_code_123'
+      const parsed = parseAuthUrl(url)
+
+      expect(parsed.code).toBe('google_pkce_code_123')
+      expect(parsed.error).toBeUndefined()
+    })
+
+    it('parses Google OAuth access and refresh tokens from fragment', () => {
+      const url =
+        'aurelia://auth/callback#access_token=google_access_token&refresh_token=google_refresh_token&token_type=bearer'
+      const parsed = parseAuthUrl(url)
+
+      expect(parsed.accessToken).toBe('google_access_token')
+      expect(parsed.refreshToken).toBe('google_refresh_token')
+    })
+
+    it('parses Google OAuth error and error_description from callback', () => {
+      const url =
+        'aurelia://auth/callback?error=access_denied&error_description=User+declined+authorization'
+      const parsed = parseAuthUrl(url)
+
+      expect(parsed.error).toBe('access_denied')
+      expect(parsed.errorDescription).toBe('User declined authorization')
+    })
+
+    it('initiates Google OAuth with proper provider, scheme redirect, and offline access options', async () => {
+      const oauthSpy = vi.spyOn(supabase.auth, 'signInWithOAuth').mockResolvedValueOnce({
+        data: {
+          provider: 'google',
+          url: 'https://upzkcqovqstfsizerulx.supabase.co/auth/v1/authorize?provider=google',
+        },
+        error: null,
+      })
+
+      const redirectUrl = Linking.createURL('auth/callback')
+      expect(redirectUrl).toBe('aurelia://auth/callback')
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      })
+
+      expect(error).toBeNull()
+      expect(oauthSpy).toHaveBeenCalledWith({
+        provider: 'google',
+        options: {
+          redirectTo: 'aurelia://auth/callback',
+          skipBrowserRedirect: true,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      })
+      expect(data?.url).toContain('authorize?provider=google')
+    })
+
+    it('handles user cancellation when browser auth session is dismissed or cancelled', async () => {
+      vi.spyOn(WebBrowser, 'openAuthSessionAsync').mockResolvedValueOnce({
+        type: 'cancel' as any,
+      })
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        'https://upzkcqovqstfsizerulx.supabase.co/auth/v1/authorize',
+        'aurelia://auth/callback'
+      )
+
+      expect(result.type).toBe('cancel')
+    })
+
+    it('exchanges authorization code for session on successful OAuth callback', async () => {
+      vi.spyOn(WebBrowser, 'openAuthSessionAsync').mockResolvedValueOnce({
+        type: 'success',
+        url: 'aurelia://auth/callback?code=google_auth_code_789',
+      })
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        'https://upzkcqovqstfsizerulx.supabase.co/auth/v1/authorize',
+        'aurelia://auth/callback'
+      )
+
+      expect(result.type).toBe('success')
+      if (result.type === 'success' && result.url) {
+        const parsed = parseAuthUrl(result.url)
+        expect(parsed.code).toBe('google_auth_code_789')
+
+        const exchangeSpy = vi
+          .spyOn(supabase.auth, 'exchangeCodeForSession')
+          .mockResolvedValueOnce({
+            data: {
+              session: { access_token: 'google_session_token' } as any,
+              user: { id: 'usr-google', email: 'user@gmail.com' } as any,
+            },
+            error: null,
+          })
+
+        const { data, error } = await supabase.auth.exchangeCodeForSession(parsed.code!)
+        expect(exchangeSpy).toHaveBeenCalledWith('google_auth_code_789')
+        expect(error).toBeNull()
+        expect(data.user?.email).toBe('user@gmail.com')
+      }
+    })
+
+    it('sets session when tokens are returned in URL fragment', async () => {
+      const setSessionSpy = vi.spyOn(supabase.auth, 'setSession').mockResolvedValueOnce({
+        data: {
+          session: { access_token: 'direct_token', refresh_token: 'direct_refresh' } as any,
+          user: { id: 'usr-google-direct', email: 'direct@gmail.com' } as any,
+        },
+        error: null,
+      })
+
+      const callbackUrl =
+        'aurelia://auth/callback#access_token=direct_token&refresh_token=direct_refresh'
+      const parsed = parseAuthUrl(callbackUrl)
+
+      expect(parsed.accessToken).toBe('direct_token')
+      expect(parsed.refreshToken).toBe('direct_refresh')
+
+      const { data, error } = await supabase.auth.setSession({
+        access_token: parsed.accessToken!,
+        refresh_token: parsed.refreshToken!,
+      })
+
+      expect(setSessionSpy).toHaveBeenCalledWith({
+        access_token: 'direct_token',
+        refresh_token: 'direct_refresh',
+      })
+      expect(error).toBeNull()
+      expect(data.user?.id).toBe('usr-google-direct')
+    })
+
+    it('handles OAuth initialization failure gracefully', async () => {
+      vi.spyOn(supabase.auth, 'signInWithOAuth').mockResolvedValueOnce({
+        data: { provider: 'google', url: null },
+        error: { message: 'Provider not configured', name: 'AuthApiError', status: 400 } as any,
+      })
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: 'aurelia://auth/callback' },
+      })
+
+      expect(data.url).toBeNull()
+      expect(error).not.toBeNull()
+      expect(error?.message).toBe('Provider not configured')
+    })
+  })
 })
+

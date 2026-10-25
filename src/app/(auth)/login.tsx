@@ -16,17 +16,21 @@ import { AuthHeader } from '@/components/auth/auth-header'
 import { AuthInput } from '@/components/auth/auth-input'
 import { AuthButton } from '@/components/auth/auth-button'
 import { AuthAlert } from '@/components/auth/auth-alert'
+import { GoogleIcon } from '@/components/auth/google-icon'
 
 export default function LoginScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ redirect?: string }>()
-  const { signIn } = useAuth()
+  const { signIn, signInWithGoogle } = useAuth()
   const { colors, typography, spacing } = useAureliaTheme()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const isSubmitting = loading || googleLoading
 
   const handleSignIn = async () => {
     if (!email.trim() || !password) {
@@ -54,6 +58,30 @@ export default function LoginScreen() {
     }
   }
 
+  const handleGoogleSignIn = async () => {
+    setErrorMessage(null)
+    setGoogleLoading(true)
+
+    try {
+      const res = await signInWithGoogle()
+      if (res.cancelled) {
+        return
+      }
+      if (!res.success) {
+        setErrorMessage(res.error || 'Failed to sign in with Google.')
+      } else {
+        const dest = params.redirect
+        if (dest && typeof dest === 'string' && !dest.includes('login') && !dest.includes('(auth)')) {
+          router.replace(dest as any)
+        } else {
+          router.replace('/(app)/(tabs)/home')
+        }
+      }
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
@@ -71,6 +99,27 @@ export default function LoginScreen() {
           />
 
           {errorMessage && <AuthAlert type="error" message={errorMessage} />}
+
+          {/* Primary OAuth: Continue with Google */}
+          <View style={styles.oauthContainer}>
+            <AuthButton
+              title="Continue with Google"
+              icon={<GoogleIcon size={18} />}
+              onPress={handleGoogleSignIn}
+              loading={googleLoading}
+              disabled={isSubmitting}
+              variant="outline"
+              accessibilityLabel="Continue with Google"
+            />
+
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <Text style={[typography.caption, { color: colors.mutedForeground, marginHorizontal: 12 }]}>
+                OR CONTINUE WITH EMAIL
+              </Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            </View>
+          </View>
 
           <View style={styles.form}>
             <AuthInput
@@ -118,6 +167,7 @@ export default function LoginScreen() {
               title="Sign In"
               onPress={handleSignIn}
               loading={loading}
+              disabled={isSubmitting}
               variant="primary"
               style={{ marginTop: spacing.base }}
             />
@@ -161,8 +211,21 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 40,
   },
+  oauthContainer: {
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
   form: {
-    marginTop: 8,
+    marginTop: 0,
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',

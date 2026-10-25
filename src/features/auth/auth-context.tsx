@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import * as WebBrowser from 'expo-web-browser'
+import * as Linking from 'expo-linking'
 import { supabase } from '@/lib/supabase'
 import { parseAuthUrl, normalizeAuthError } from '@/lib/auth-url'
+
+// Complete any pending browser sessions if returning from OAuth
+WebBrowser.maybeCompleteAuthSession()
 
 export interface AuthContextValue {
   user: User | null
@@ -10,6 +15,7 @@ export interface AuthContextValue {
   error: string | null
   recoveryActive: boolean
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string; cancelled?: boolean }>
   signUp: (
     email: string,
     password: string
@@ -105,6 +111,98 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(data.session)
       setUser(data.user)
       return { success: true }
+    } catch (err) {
+      const msg = normalizeAuthError(err)
+      setError(msg)
+      return { success: false, error: msg }
+    }
+  }, [])
+
+  const signInWithGoogle = useCallback(async () => {
+    setError(null)
+    try {
+      const redirectUrl = Linking.createURL('auth/callback')
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      })
+
+      if (oauthError) {
+        const msg = normalizeAuthError(oauthError)
+        setError(msg)
+        return { success: false, error: msg }
+      }
+
+      if (!data?.url) {
+        const msg = 'Could not generate Google sign-in URL.'
+        setError(msg)
+        return { success: false, error: msg }
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl)
+
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        return { success: false, cancelled: true }
+      }
+
+      if (result.type === 'success' && result.url) {
+        const parsed = parseAuthUrl(result.url)
+
+        if (parsed.error) {
+          const msg = normalizeAuthError(parsed.errorDescription || parsed.error)
+          setError(msg)
+          return { success: false, error: msg }
+        }
+
+        // Case 1: PKCE code exchange
+        if (parsed.code) {
+          const { data: sessionData, error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(parsed.code)
+
+          if (exchangeError) {
+            const msg = normalizeAuthError(exchangeError)
+            setError(msg)
+            return { success: false, error: msg }
+          }
+
+          setSession(sessionData.session)
+          setUser(sessionData.user)
+          setRecoveryActive(false)
+          return { success: true }
+        }
+
+        // Case 2: Direct session tokens
+        if (parsed.accessToken && parsed.refreshToken) {
+          const { data: sessionData, error: setSessionError } =
+            await supabase.auth.setSession({
+              access_token: parsed.accessToken,
+              refresh_token: parsed.refreshToken,
+            })
+
+          if (setSessionError) {
+            const msg = normalizeAuthError(setSessionError)
+            setError(msg)
+            return { success: false, error: msg }
+          }
+
+          setSession(sessionData.session)
+          setUser(sessionData.user)
+          setRecoveryActive(false)
+          return { success: true }
+        }
+      }
+
+      const msg = 'No authentication response received from Google.'
+      setError(msg)
+      return { success: false, error: msg }
     } catch (err) {
       const msg = normalizeAuthError(err)
       setError(msg)
@@ -249,8 +347,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(data.session)
         setUser(data.user)
-        setRecoveryActive(true)
-        return { success: true, isRecovery: true }
+        const isRecovery = parsed.type === 'recovery'
+        if (isRecovery) {
+          setRecoveryActive(true)
+        }
+        return { success: true, isRecovery }
       }
 
       // Case 3: Token hash verification
@@ -268,8 +369,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(data.session)
         setUser(data.user)
-        setRecoveryActive(true)
-        return { success: true, isRecovery: true }
+        const isRecovery = parsed.type === 'recovery'
+        if (isRecovery) {
+          setRecoveryActive(true)
+        }
+        return { success: true, isRecovery }
       }
 
       return { success: false, error: 'No authentication parameters found in link.' }
@@ -319,6 +423,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       recoveryActive,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut,
       sendPasswordReset,
@@ -334,6 +439,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       recoveryActive,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut,
       sendPasswordReset,

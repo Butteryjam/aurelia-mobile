@@ -2,6 +2,7 @@ import React from 'react'
 import {
   StyleSheet,
   Text,
+  View,
   Pressable,
   ActivityIndicator,
   ViewStyle,
@@ -15,6 +16,7 @@ export interface AuthButtonProps {
   loading?: boolean
   disabled?: boolean
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost'
+  icon?: React.ReactNode
   style?: ViewStyle
   textStyle?: TextStyle
   accessibilityLabel?: string
@@ -26,6 +28,7 @@ export function AuthButton({
   loading = false,
   disabled = false,
   variant = 'primary',
+  icon,
   style,
   textStyle,
   accessibilityLabel,
@@ -83,6 +86,20 @@ export function AuthButton({
           size="small"
           color={variant === 'primary' ? colors.primaryForeground : colors.primary}
         />
+      ) : icon ? (
+        <View style={styles.contentRow}>
+          {icon}
+          <Text
+            style={[
+              typography.bodyMedium,
+              styles.text,
+              { color: getTextColor() },
+              textStyle,
+            ]}
+          >
+            {title}
+          </Text>
+        </View>
       ) : (
         <Text
           style={[
@@ -103,5 +120,11 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: '600',
     fontSize: 15,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
 })
