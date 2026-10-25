@@ -131,6 +131,7 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardData> {
 
   const userDisplayName =
     profileRes.data?.display_name ||
+    user.user_metadata?.display_name ||
     user.user_metadata?.full_name ||
     user.email?.split('@')[0] ||
     'Chef'

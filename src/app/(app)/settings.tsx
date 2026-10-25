@@ -39,15 +39,17 @@ import {
   Sun,
   Moon,
   Smartphone,
+  Pencil,
 } from 'lucide-react-native'
 import { useAureliaTheme } from '@/theme'
 import { useThemeMode, type ThemeMode } from '@/theme/theme-context'
 import { useAuth } from '@/features/auth/auth-context'
 import { queryClient } from '@/lib/query-client'
+import { EditNameModal } from '@/components/profile/edit-name-modal'
 
 export default function SettingsScreen() {
   const router = useRouter()
-  const { user, signOut } = useAuth()
+  const { user, signOut, updateProfileName } = useAuth()
   const { colors, typography, spacing, radii, shadows } = useAureliaTheme()
   const { themeMode, setThemeMode } = useThemeMode()
 
@@ -56,6 +58,13 @@ export default function SettingsScreen() {
   const [defaultServings, setDefaultServings] = useState<number>(4)
   const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(true)
   const [cacheCleared, setCacheCleared] = useState(false)
+  const [isEditNameModalVisible, setIsEditNameModalVisible] = useState(false)
+
+  const currentDisplayName =
+    user?.user_metadata?.display_name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split('@')[0] ||
+    'Aurelia Member'
 
   const handleClearCache = async () => {
     queryClient.clear()
@@ -130,9 +139,26 @@ export default function SettingsScreen() {
               <UserIcon size={22} color={colors.primary} />
             </View>
             <View style={styles.accountText}>
-              <Text style={[typography.cardTitle, { color: colors.foreground }]}>
-                {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Aurelia Member'}
-              </Text>
+              <View style={styles.accountNameRow}>
+                <Text style={[typography.cardTitle, { color: colors.foreground, flexShrink: 1 }]}>
+                  {currentDisplayName}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit display name"
+                  onPress={() => setIsEditNameModalVisible(true)}
+                  style={({ pressed }) => [
+                    styles.editIconBtn,
+                    {
+                      backgroundColor: pressed ? colors.primary + '18' : colors.primary + '0D',
+                      borderColor: colors.primary + '30',
+                    },
+                  ]}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Pencil size={13} color={colors.primary} />
+                </Pressable>
+              </View>
               <Text style={[typography.caption, { color: colors.mutedForeground, marginTop: 2 }]}>
                 {user?.email || 'test_aurelia@culinary.test'}
               </Text>
@@ -141,6 +167,31 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Action Row: Edit Name */}
+          <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Edit Name"
+            onPress={() => setIsEditNameModalVisible(true)}
+            style={({ pressed }) => [
+              styles.editNameRow,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <View style={styles.editNameRowLeft}>
+              <Pencil size={16} color={colors.primary} />
+              <View style={{ marginLeft: 10 }}>
+                <Text style={[typography.body, { color: colors.foreground, fontWeight: '600', fontSize: 14 }]}>
+                  Edit Name
+                </Text>
+                <Text style={[typography.caption, { color: colors.mutedForeground, fontSize: 11 }]}>
+                  Change your public display name
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color={colors.mutedForeground} />
+          </Pressable>
         </View>
 
         {/* ── Appearance ── */}
@@ -490,6 +541,19 @@ export default function SettingsScreen() {
           <Text style={[typography.bodyMedium, { color: colors.destructive, fontWeight: '700' }]}>Sign Out</Text>
         </Pressable>
       </ScrollView>
+
+      {/* ── Edit Name Modal ── */}
+      <EditNameModal
+        visible={isEditNameModalVisible}
+        currentName={currentDisplayName}
+        onClose={() => setIsEditNameModalVisible(false)}
+        onSave={async (newName) => {
+          if (updateProfileName) {
+            return await updateProfileName(newName)
+          }
+          return { success: false, error: 'Profile name update is unavailable.' }
+        }}
+      />
     </SafeAreaView>
   )
 }
@@ -635,5 +699,32 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     height: 52,
     marginTop: 32,
+  },
+  accountNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editIconBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 12,
+  },
+  editNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  editNameRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 })

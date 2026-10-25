@@ -4,8 +4,9 @@ import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
 import { supabase } from '@/lib/supabase'
 import { parseAuthUrl, normalizeAuthError } from '@/lib/auth-url'
-import { clearUserQueryCache } from '@/lib/query-client'
+import { clearUserQueryCache, queryClient } from '@/lib/query-client'
 import { clearAllUserDrafts } from '@/features/recipes/draft-storage'
+import { updateUserProfile } from './profile-api'
 
 // Complete any pending browser sessions if returning from OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -35,6 +36,7 @@ export interface AuthContextValue {
     type?: 'recovery' | 'signup'
   }) => Promise<{ success: boolean; error?: string }>
   clearError: () => void
+  updateProfileName: (displayName: string) => Promise<{ success: boolean; error?: string }>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -485,6 +487,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   )
 
+  const updateProfileName = useCallback(async (displayName: string) => {
+    setError(null)
+    const result = await updateUserProfile(displayName)
+    if (result.success && result.user) {
+      setUser(result.user)
+      queryClient.invalidateQueries({ queryKey: ['home-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      return { success: true }
+    }
+    const msg = result.error || 'Failed to update name.'
+    setError(msg)
+    return { success: false, error: msg }
+  }, [])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -502,6 +518,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       handleDeepLinkUrl,
       verifyOtp,
       clearError,
+      updateProfileName,
     }),
     [
       user,
@@ -519,6 +536,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       handleDeepLinkUrl,
       verifyOtp,
       clearError,
+      updateProfileName,
     ]
   )
 
@@ -532,15 +550,16 @@ const DEFAULT_AUTH_FALLBACK: AuthContextValue = {
   isTransitioning: false,
   error: null,
   recoveryActive: false,
-  signIn: async () => {},
-  signInWithGoogle: async () => {},
-  signUp: async () => {},
+  signIn: async () => ({ success: false, error: 'Not authenticated' }),
+  signInWithGoogle: async () => ({ success: false, error: 'Not authenticated' }),
+  signUp: async () => ({ success: false, error: 'Not authenticated' }),
   signOut: async () => {},
-  sendPasswordReset: async () => {},
-  updatePassword: async () => {},
-  handleDeepLinkUrl: async () => false,
-  verifyOtp: async () => {},
+  sendPasswordReset: async () => ({ success: false, error: 'Not authenticated' }),
+  updatePassword: async () => ({ success: false, error: 'Not authenticated' }),
+  handleDeepLinkUrl: async () => ({ success: false, error: 'Not authenticated' }),
+  verifyOtp: async () => ({ success: false, error: 'Not authenticated' }),
   clearError: () => {},
+  updateProfileName: async () => ({ success: false, error: 'Not authenticated' }),
 }
 
 export function useAuth(): AuthContextValue {

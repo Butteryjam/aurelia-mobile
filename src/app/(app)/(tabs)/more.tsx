@@ -68,7 +68,7 @@ export default function MoreTabScreen() {
           </View>
           <View style={styles.accountInfo}>
             <Text style={[typography.cardTitle, { color: colors.foreground }]}>
-              {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Aurelia Member'}
+              {user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Aurelia Member'}
             </Text>
             <Text style={[typography.caption, { color: colors.mutedForeground, marginTop: 2 }]}>
               {user?.email ? `${user.email} · Personal Vault` : 'Personal Vault • Authenticated'}
