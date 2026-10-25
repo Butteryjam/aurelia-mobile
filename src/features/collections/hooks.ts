@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/features/auth/auth-context'
 import {
   fetchCollections,
   fetchCollectionDetail,
@@ -11,26 +12,47 @@ import {
 } from './api'
 import type { CreateCollectionInput, UpdateCollectionInput } from './types'
 
+export const COLLECTION_KEYS = {
+  all: (userId?: string | null) =>
+    userId ? (['collections', userId] as const) : (['collections'] as const),
+  detail: (id: string, userId?: string | null) =>
+    userId ? (['collection', userId, id] as const) : (['collection', id] as const),
+  eligible: (collectionId: string, userId?: string | null) =>
+    userId
+      ? (['eligible-recipes-for-collection', userId, collectionId] as const)
+      : (['eligible-recipes-for-collection', collectionId] as const),
+}
+
 export function useCollections() {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery({
-    queryKey: ['collections'],
+    queryKey: COLLECTION_KEYS.all(userId),
     queryFn: fetchCollections,
+    enabled: Boolean(userId),
   })
 }
 
 export function useCollectionDetail(id: string) {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery({
-    queryKey: ['collection', id],
+    queryKey: COLLECTION_KEYS.detail(id, userId),
     queryFn: () => fetchCollectionDetail(id),
-    enabled: Boolean(id),
+    enabled: Boolean(userId && id),
   })
 }
 
 export function useEligibleRecipesForCollection(collectionId: string, enabled = true) {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery({
-    queryKey: ['eligible-recipes-for-collection', collectionId],
+    queryKey: COLLECTION_KEYS.eligible(collectionId, userId),
     queryFn: () => fetchEligibleRecipesForCollection(collectionId),
-    enabled: Boolean(collectionId) && enabled,
+    enabled: Boolean(userId && collectionId) && enabled,
   })
 }
 

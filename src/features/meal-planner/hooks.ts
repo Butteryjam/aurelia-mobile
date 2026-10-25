@@ -3,6 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/features/auth/auth-context'
 import {
   fetchMealPlanForWeek,
   fetchRecipesForPicker,
@@ -19,18 +20,29 @@ import type {
 
 export const MEAL_PLAN_KEYS = {
   all: ['meal-plan'] as const,
-  week: (start: string, end: string) => ['meal-plan-week', start, end] as const,
-  picker: (search?: string) => ['meal-planner-recipes', search || ''] as const,
+  userAll: (userId?: string | null) =>
+    userId ? (['meal-plan', userId] as const) : (['meal-plan'] as const),
+  week: (start: string, end: string, userId?: string | null) =>
+    userId
+      ? (['meal-plan-week', userId, start, end] as const)
+      : (['meal-plan-week', start, end] as const),
+  picker: (search?: string, userId?: string | null) =>
+    userId
+      ? (['meal-planner-recipes', userId, search || ''] as const)
+      : (['meal-planner-recipes', search || ''] as const),
 }
 
 /**
  * Hook to retrieve all planned meals for a 7-day week range.
  */
 export function useMealPlanWeek(startDate: string, endDate: string) {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery({
-    queryKey: MEAL_PLAN_KEYS.week(startDate, endDate),
+    queryKey: MEAL_PLAN_KEYS.week(startDate, endDate, userId),
     queryFn: () => fetchMealPlanForWeek(startDate, endDate),
-    enabled: Boolean(startDate && endDate),
+    enabled: Boolean(userId && startDate && endDate),
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }
@@ -39,9 +51,13 @@ export function useMealPlanWeek(startDate: string, endDate: string) {
  * Hook to retrieve recipes for the Add Meal bottom sheet.
  */
 export function useRecipesForMealPicker(search?: string) {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery({
-    queryKey: MEAL_PLAN_KEYS.picker(search),
+    queryKey: MEAL_PLAN_KEYS.picker(search, userId),
     queryFn: () => fetchRecipesForPicker(search),
+    enabled: Boolean(userId),
     staleTime: 1000 * 60 * 5,
   })
 }
@@ -51,14 +67,17 @@ export function useRecipesForMealPicker(search?: string) {
  */
 export function useAddMealPlanItem(startDate?: string, endDate?: string) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: (input: AddMealPlanItemInput) => addMealPlanItem(input),
     onSuccess: () => {
       if (startDate && endDate) {
-        queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate) })
+        queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate, userId) })
       } else {
         queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.all })
+        queryClient.invalidateQueries({ queryKey: ['meal-plan-week'] })
       }
       queryClient.invalidateQueries({ queryKey: ['home-dashboard'] })
     },
@@ -70,14 +89,17 @@ export function useAddMealPlanItem(startDate?: string, endDate?: string) {
  */
 export function useUpdateMealPlanItem(startDate?: string, endDate?: string) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: (input: UpdateMealPlanItemInput) => updateMealPlanItem(input),
     onSuccess: () => {
       if (startDate && endDate) {
-        queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate) })
+        queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate, userId) })
       } else {
         queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.all })
+        queryClient.invalidateQueries({ queryKey: ['meal-plan-week'] })
       }
       queryClient.invalidateQueries({ queryKey: ['home-dashboard'] })
     },
@@ -89,6 +111,8 @@ export function useUpdateMealPlanItem(startDate?: string, endDate?: string) {
  */
 export function useToggleMealCooked(startDate?: string, endDate?: string) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: ({ id, isCooked }: { id: string; isCooked: boolean }) =>
@@ -96,12 +120,12 @@ export function useToggleMealCooked(startDate?: string, endDate?: string) {
     onMutate: async ({ id, isCooked }) => {
       if (!startDate || !endDate) return
 
-      await queryClient.cancelQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate) })
-      const prevData = queryClient.getQueryData<DayMeals[]>(MEAL_PLAN_KEYS.week(startDate, endDate))
+      await queryClient.cancelQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate, userId) })
+      const prevData = queryClient.getQueryData<DayMeals[]>(MEAL_PLAN_KEYS.week(startDate, endDate, userId))
 
       if (prevData) {
         queryClient.setQueryData<DayMeals[]>(
-          MEAL_PLAN_KEYS.week(startDate, endDate),
+          MEAL_PLAN_KEYS.week(startDate, endDate, userId),
           prevData.map((day) => ({
             ...day,
             slots: {
@@ -118,12 +142,14 @@ export function useToggleMealCooked(startDate?: string, endDate?: string) {
     },
     onError: (_err, _vars, context) => {
       if (startDate && endDate && context?.prevData) {
-        queryClient.setQueryData(MEAL_PLAN_KEYS.week(startDate, endDate), context.prevData)
+        queryClient.setQueryData(MEAL_PLAN_KEYS.week(startDate, endDate, userId), context.prevData)
       }
     },
     onSettled: () => {
       if (startDate && endDate) {
-        queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate) })
+        queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate, userId) })
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['meal-plan-week'] })
       }
       queryClient.invalidateQueries({ queryKey: ['home-dashboard'] })
     },
@@ -135,14 +161,17 @@ export function useToggleMealCooked(startDate?: string, endDate?: string) {
  */
 export function useDeleteMealPlanItem(startDate?: string, endDate?: string) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: (id: string) => deleteMealPlanItem(id),
     onSuccess: () => {
       if (startDate && endDate) {
-        queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate) })
+        queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.week(startDate, endDate, userId) })
       } else {
         queryClient.invalidateQueries({ queryKey: MEAL_PLAN_KEYS.all })
+        queryClient.invalidateQueries({ queryKey: ['meal-plan-week'] })
       }
       queryClient.invalidateQueries({ queryKey: ['home-dashboard'] })
     },

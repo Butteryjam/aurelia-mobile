@@ -24,12 +24,12 @@ import { useAureliaTheme } from '@/theme'
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
 function AuthNavigationGuard({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, isTransitioning } = useAuth()
   const segments = useSegments()
   const router = useRouter()
 
   useEffect(() => {
-    if (isLoading) return
+    if (isLoading || isTransitioning) return
 
     const segs = segments as unknown as string[]
     const inAuthGroup = segs[0] === '(auth)'
@@ -50,9 +50,9 @@ function AuthNavigationGuard({ children }: { children: React.ReactNode }) {
     } else if (user && inAuthGroup && !isResetPassword) {
       router.replace('/(app)/(tabs)/home')
     }
-  }, [user, isLoading, segments, router])
+  }, [user, isLoading, isTransitioning, segments, router])
 
-  if (isLoading) {
+  if (isLoading || isTransitioning) {
     return <AuthBootstrapScreen />
   }
 

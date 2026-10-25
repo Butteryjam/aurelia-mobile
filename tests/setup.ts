@@ -21,6 +21,10 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     clear: vi.fn(async () => {
       storageMap.clear()
     }),
+    getAllKeys: vi.fn(async () => Array.from(storageMap.keys())),
+    multiRemove: vi.fn(async (keys: string[]) => {
+      keys.forEach((k) => storageMap.delete(k))
+    }),
   },
 }))
 

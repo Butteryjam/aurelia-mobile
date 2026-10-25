@@ -7,6 +7,7 @@
 
 import { useRef, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/features/auth/auth-context'
 import {
   extractRecipeFromText,
   extractRecipeFromImage,
@@ -129,19 +130,35 @@ export function useSendChatMessage() {
   return { ...mutation, cancel }
 }
 
+export const AI_QUERY_KEYS = {
+  conversations: (userId?: string | null) =>
+    userId ? (['ai-conversations', userId] as const) : (['ai-conversations'] as const),
+  messages: (conversationId: string | null, userId?: string | null) =>
+    userId
+      ? (['ai-messages', userId, conversationId ?? ''] as const)
+      : (['ai-messages', conversationId ?? ''] as const),
+}
+
 export function useConversations() {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery<Conversation[]>({
-    queryKey: ['ai-conversations'],
+    queryKey: AI_QUERY_KEYS.conversations(userId),
     queryFn: fetchConversations,
+    enabled: Boolean(userId),
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }
 
 export function useConversationMessages(conversationId: string | null) {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery<ChatMessage[]>({
-    queryKey: ['ai-messages', conversationId],
+    queryKey: AI_QUERY_KEYS.messages(conversationId, userId),
     queryFn: () => fetchConversationMessages(conversationId!),
-    enabled: !!conversationId,
+    enabled: Boolean(userId && conversationId),
     staleTime: 1000 * 30, // 30 seconds
   })
 }

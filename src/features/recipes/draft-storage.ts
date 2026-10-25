@@ -102,3 +102,32 @@ export async function clearRecipeDraft(
     console.warn('[clearRecipeDraft] Storage remove failed:', err)
   }
 }
+
+/**
+ * Clear all drafts associated with a specific user (in memory and AsyncStorage).
+ * Called when an account signs out or switches to ensure no draft leakage.
+ */
+export async function clearAllUserDrafts(userId: string): Promise<void> {
+  if (!userId) return
+
+  // 1. Clear matching keys from in-memory cache
+  for (const key of Array.from(memoryDrafts.keys())) {
+    if (key.includes(userId)) {
+      memoryDrafts.delete(key)
+    }
+  }
+
+  if (isServer) return
+
+  // 2. Clear matching keys from AsyncStorage
+  try {
+    const allKeys = await AsyncStorage.getAllKeys()
+    const userKeys = allKeys.filter((k) => k.startsWith(`${DRAFT_PREFIX}${userId}`))
+    if (userKeys.length > 0) {
+      await AsyncStorage.multiRemove(userKeys)
+    }
+  } catch (err) {
+    console.warn('[clearAllUserDrafts] Storage clear failed:', err)
+  }
+}
+

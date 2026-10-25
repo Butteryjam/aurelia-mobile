@@ -3,6 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/features/auth/auth-context'
 import {
   fetchActiveShoppingList,
   fetchShoppingList,
@@ -21,17 +22,26 @@ import type { ShoppingListWithItems } from './types'
 
 export const SHOPPING_KEYS = {
   all: ['shopping-lists'] as const,
-  list: (id: string) => ['shopping-list', id] as const,
   active: ['active-shopping-list'] as const,
+  userAll: (userId?: string | null) =>
+    userId ? (['shopping-lists', userId] as const) : (['shopping-lists'] as const),
+  userActive: (userId?: string | null) =>
+    userId ? (['active-shopping-list', userId] as const) : (['active-shopping-list'] as const),
+  list: (id: string, userId?: string | null) =>
+    userId ? (['shopping-list', userId, id] as const) : (['shopping-list', id] as const),
 }
 
 /**
  * Hook to retrieve the user's active shopping list.
  */
 export function useActiveShoppingList() {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery({
-    queryKey: SHOPPING_KEYS.active,
+    queryKey: SHOPPING_KEYS.userActive(userId),
     queryFn: fetchActiveShoppingList,
+    enabled: Boolean(userId),
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }
@@ -40,10 +50,13 @@ export function useActiveShoppingList() {
  * Hook to retrieve a specific shopping list by ID.
  */
 export function useShoppingList(listId: string) {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery({
-    queryKey: SHOPPING_KEYS.list(listId),
+    queryKey: SHOPPING_KEYS.list(listId, userId),
     queryFn: () => fetchShoppingList(listId),
-    enabled: Boolean(listId),
+    enabled: Boolean(userId && listId),
     staleTime: 1000 * 60 * 2,
   })
 }
@@ -52,9 +65,13 @@ export function useShoppingList(listId: string) {
  * Hook to retrieve all shopping lists.
  */
 export function useUserShoppingLists() {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   return useQuery({
-    queryKey: SHOPPING_KEYS.all,
+    queryKey: SHOPPING_KEYS.userAll(userId),
     queryFn: fetchUserShoppingLists,
+    enabled: Boolean(userId),
     staleTime: 1000 * 60 * 2,
   })
 }
@@ -64,12 +81,14 @@ export function useUserShoppingLists() {
  */
 export function useCreateShoppingList() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: (name: string) => createShoppingList(name),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.all })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userAll(userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
     },
   })
 }
@@ -79,13 +98,15 @@ export function useCreateShoppingList() {
  */
 export function useDeleteShoppingList() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: (listId: string) => deleteShoppingList(listId),
     onSuccess: (_data, listId) => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.all })
-      queryClient.removeQueries({ queryKey: SHOPPING_KEYS.list(listId) })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userAll(userId) })
+      queryClient.removeQueries({ queryKey: SHOPPING_KEYS.list(listId, userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
     },
   })
 }
@@ -95,14 +116,16 @@ export function useDeleteShoppingList() {
  */
 export function useRenameShoppingList() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: ({ listId, newName }: { listId: string; newName: string }) =>
       renameShoppingList(listId, newName),
     onSuccess: (updated) => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.all })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(updated.id) })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userAll(userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(updated.id, userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
     },
   })
 }
@@ -112,18 +135,24 @@ export function useRenameShoppingList() {
  */
 export function useToggleShoppingItem(listId: string) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: ({ itemId, isChecked }: { itemId: string; isChecked: boolean }) =>
       toggleItemChecked(itemId, isChecked),
     onMutate: async ({ itemId, isChecked }) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: SHOPPING_KEYS.list(listId) })
-      await queryClient.cancelQueries({ queryKey: SHOPPING_KEYS.active })
+      await queryClient.cancelQueries({ queryKey: SHOPPING_KEYS.list(listId, userId) })
+      await queryClient.cancelQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
 
       // Snapshot previous values
-      const prevList = queryClient.getQueryData<ShoppingListWithItems>(SHOPPING_KEYS.list(listId))
-      const prevActive = queryClient.getQueryData<ShoppingListWithItems>(SHOPPING_KEYS.active)
+      const prevList = queryClient.getQueryData<ShoppingListWithItems>(
+        SHOPPING_KEYS.list(listId, userId)
+      )
+      const prevActive = queryClient.getQueryData<ShoppingListWithItems>(
+        SHOPPING_KEYS.userActive(userId)
+      )
 
       // Optimistically update
       const updateItems = (old: ShoppingListWithItems | undefined) => {
@@ -136,9 +165,9 @@ export function useToggleShoppingItem(listId: string) {
         }
       }
 
-      queryClient.setQueryData(SHOPPING_KEYS.list(listId), updateItems)
+      queryClient.setQueryData(SHOPPING_KEYS.list(listId, userId), updateItems)
       if (prevActive?.id === listId) {
-        queryClient.setQueryData(SHOPPING_KEYS.active, updateItems)
+        queryClient.setQueryData(SHOPPING_KEYS.userActive(userId), updateItems)
       }
 
       return { prevList, prevActive }
@@ -146,15 +175,15 @@ export function useToggleShoppingItem(listId: string) {
     onError: (_err, _vars, context) => {
       // Rollback on failure
       if (context?.prevList) {
-        queryClient.setQueryData(SHOPPING_KEYS.list(listId), context.prevList)
+        queryClient.setQueryData(SHOPPING_KEYS.list(listId, userId), context.prevList)
       }
       if (context?.prevActive) {
-        queryClient.setQueryData(SHOPPING_KEYS.active, context.prevActive)
+        queryClient.setQueryData(SHOPPING_KEYS.userActive(userId), context.prevActive)
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(listId) })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(listId, userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
     },
   })
 }
@@ -164,12 +193,14 @@ export function useToggleShoppingItem(listId: string) {
  */
 export function useAddManualShoppingItem(listId: string) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: (rawText: string) => addManualShoppingItem(listId, rawText),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(listId) })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(listId, userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
     },
   })
 }
@@ -179,12 +210,14 @@ export function useAddManualShoppingItem(listId: string) {
  */
 export function useDeleteShoppingItem(listId: string) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: (itemId: string) => deleteShoppingItem(itemId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(listId) })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(listId, userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
     },
   })
 }
@@ -194,12 +227,14 @@ export function useDeleteShoppingItem(listId: string) {
  */
 export function useClearCompletedShoppingItems(listId: string) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: () => clearCompletedShoppingItems(listId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(listId) })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(listId, userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
     },
   })
 }
@@ -209,6 +244,8 @@ export function useClearCompletedShoppingItems(listId: string) {
  */
 export function useGenerateShoppingFromMealPlan() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: ({
@@ -219,9 +256,9 @@ export function useGenerateShoppingFromMealPlan() {
       plannedItemIds: string[]
     }) => generateShoppingItemsFromMealPlan(shoppingListId, plannedItemIds),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(variables.shoppingListId) })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(variables.shoppingListId, userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userAll(userId) })
     },
   })
 }
@@ -231,6 +268,8 @@ export function useGenerateShoppingFromMealPlan() {
  */
 export function useAddRecipeToShoppingList() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   return useMutation({
     mutationFn: ({
@@ -243,9 +282,9 @@ export function useAddRecipeToShoppingList() {
       targetServings: number
     }) => addRecipeToShoppingList(shoppingListId, recipeId, targetServings),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(variables.shoppingListId) })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
-      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(variables.shoppingListId, userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userActive(userId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.userAll(userId) })
     },
   })
 }

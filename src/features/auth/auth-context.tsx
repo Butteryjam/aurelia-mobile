@@ -1,9 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
 import { supabase } from '@/lib/supabase'
 import { parseAuthUrl, normalizeAuthError } from '@/lib/auth-url'
+import { clearUserQueryCache } from '@/lib/query-client'
+import { clearAllUserDrafts } from '@/features/recipes/draft-storage'
 
 // Complete any pending browser sessions if returning from OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -12,6 +14,7 @@ export interface AuthContextValue {
   user: User | null
   session: Session | null
   isLoading: boolean
+  isTransitioning: boolean
   error: string | null
   recoveryActive: boolean
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
@@ -40,8 +43,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recoveryActive, setRecoveryActive] = useState(false)
+
+  // Track the previous user ID to reliably detect account transitions
+  const currentUserIdRef = useRef<string | null>(null)
 
   const clearError = useCallback(() => {
     setError(null)
@@ -58,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (sessionError) {
           console.warn('[AuthProvider] Failed to restore session:', sessionError.message)
         }
+        currentUserIdRef.current = initialSession?.user?.id ?? null
         setSession(initialSession)
         setUser(initialSession?.user ?? null)
         setIsLoading(false)
@@ -74,9 +82,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!isMounted) return
 
+      const newUserId = newSession?.user?.id ?? null
+      const prevUserId = currentUserIdRef.current
+
+      // Check if user account changed or signed out
+      const isAccountSwitch = Boolean(prevUserId && newUserId && prevUserId !== newUserId)
+      const isSigningOut = Boolean(prevUserId && !newUserId)
+
+      if (isAccountSwitch || isSigningOut) {
+        setIsTransitioning(true)
+        // Immediately cancel active queries and clear the cache.
+        // We do NOT await network calls here to avoid deadlocking the Supabase auth listener.
+        void clearUserQueryCache()
+        if (prevUserId) {
+          void clearAllUserDrafts(prevUserId)
+        }
+      }
+
+      currentUserIdRef.current = newUserId
       setSession(newSession)
       setUser(newSession?.user ?? null)
       setIsLoading(false)
+      setIsTransitioning(false)
 
       if (event === 'PASSWORD_RECOVERY') {
         setRecoveryActive(true)
@@ -108,6 +135,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: msg }
       }
 
+      const newUserId = data.user?.id ?? null
+      if (currentUserIdRef.current && currentUserIdRef.current !== newUserId) {
+        setIsTransitioning(true)
+        await clearUserQueryCache()
+        if (currentUserIdRef.current) {
+          await clearAllUserDrafts(currentUserIdRef.current)
+        }
+        setIsTransitioning(false)
+      }
+
+      currentUserIdRef.current = newUserId
       setSession(data.session)
       setUser(data.user)
       return { success: true }
@@ -173,6 +211,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { success: false, error: msg }
           }
 
+          const newUserId = sessionData.user?.id ?? null
+          if (currentUserIdRef.current && currentUserIdRef.current !== newUserId) {
+            setIsTransitioning(true)
+            await clearUserQueryCache()
+            if (currentUserIdRef.current) {
+              await clearAllUserDrafts(currentUserIdRef.current)
+            }
+            setIsTransitioning(false)
+          }
+
+          currentUserIdRef.current = newUserId
           setSession(sessionData.session)
           setUser(sessionData.user)
           setRecoveryActive(false)
@@ -193,6 +242,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { success: false, error: msg }
           }
 
+          const newUserId = sessionData.user?.id ?? null
+          if (currentUserIdRef.current && currentUserIdRef.current !== newUserId) {
+            setIsTransitioning(true)
+            await clearUserQueryCache()
+            if (currentUserIdRef.current) {
+              await clearAllUserDrafts(currentUserIdRef.current)
+            }
+            setIsTransitioning(false)
+          }
+
+          currentUserIdRef.current = newUserId
           setSession(sessionData.session)
           setUser(sessionData.user)
           setRecoveryActive(false)
@@ -244,17 +304,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    const prevUid = user?.id || currentUserIdRef.current
+    setIsTransitioning(true)
     try {
+      // 1. Immediately cancel in-flight queries and clear query cache before signing out
+      await clearUserQueryCache()
+      if (prevUid) {
+        await clearAllUserDrafts(prevUid)
+      }
       await supabase.auth.signOut()
     } catch (err) {
       console.warn('[AuthProvider] Error during signOut:', err)
     } finally {
+      void clearUserQueryCache()
+      currentUserIdRef.current = null
       setSession(null)
       setUser(null)
       setRecoveryActive(false)
       setError(null)
+      setIsTransitioning(false)
     }
-  }, [])
+  }, [user?.id])
 
   const sendPasswordReset = useCallback(async (email: string) => {
     setError(null)
@@ -420,6 +490,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       session,
       isLoading,
+      isTransitioning,
       error,
       recoveryActive,
       signIn,
@@ -436,6 +507,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       session,
       isLoading,
+      isTransitioning,
       error,
       recoveryActive,
       signIn,
@@ -453,10 +525,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+const DEFAULT_AUTH_FALLBACK: AuthContextValue = {
+  user: null,
+  session: null,
+  isLoading: false,
+  isTransitioning: false,
+  error: null,
+  recoveryActive: false,
+  signIn: async () => {},
+  signInWithGoogle: async () => {},
+  signUp: async () => {},
+  signOut: async () => {},
+  sendPasswordReset: async () => {},
+  updatePassword: async () => {},
+  handleDeepLinkUrl: async () => false,
+  verifyOtp: async () => {},
+  clearError: () => {},
+}
+
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
+  return context ?? DEFAULT_AUTH_FALLBACK
 }
+
+export const useOptionalAuth = useAuth
+
