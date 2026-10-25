@@ -6,6 +6,7 @@
  * Never exposes service-role keys or provider internals.
  */
 
+import { Platform } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import type {
   ExtractedRecipeData,
@@ -16,8 +17,16 @@ import type {
   ChatMessage,
 } from './types'
 
-const getApiBaseUrl = () => {
-  return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
+export const getApiBaseUrl = () => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim()
+  if (envUrl) {
+    // If running on a physical Android/iOS device, localhost/127.0.0.1 is unreachable
+    if (Platform.OS !== 'web' && (envUrl.includes('localhost') || envUrl.includes('127.0.0.1'))) {
+      return 'https://aurelia-gamma-one.vercel.app'
+    }
+    return envUrl
+  }
+  return 'https://aurelia-gamma-one.vercel.app'
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -35,6 +44,77 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   }
 }
 
+/**
+ * Robust fetch wrapper for AI operations.
+ * Safely parses JSON, handles HTML/redirects without crashing, and attaches accurate HTTP status codes.
+ */
+export async function safeAiFetch(url: string, options: RequestInit): Promise<any> {
+  let response: Response
+  try {
+    response = await fetch(url, options)
+  } catch (err: any) {
+    const error: any = new Error(err.message || 'Network request failed')
+    error.status = 0
+    error.isNetworkError = true
+    throw error
+  }
+
+  const contentType = response.headers.get('content-type') || ''
+  let json: any = null
+
+  if (contentType.includes('application/json')) {
+    try {
+      json = await response.json()
+    } catch {
+      const error: any = new Error('Malformed JSON received from AI service.')
+      error.status = response.status
+      throw error
+    }
+  } else {
+    const text = await response.text().catch(() => '')
+    if (
+      response.status === 307 ||
+      response.status === 302 ||
+      response.status === 401 ||
+      text.includes('login') ||
+      (response.redirected && response.url.includes('/login'))
+    ) {
+      const error: any = new Error('Your session has expired. Please sign in again.')
+      error.status = 401
+      throw error
+    }
+    if (response.status === 405) {
+      const error: any = new Error('The AI service route refused the request method (405). Please verify backend deployment.')
+      error.status = 405
+      throw error
+    }
+    if (response.status === 404) {
+      const error: any = new Error('AI service endpoint was not found (404).')
+      error.status = 404
+      throw error
+    }
+    if (response.status >= 500) {
+      const error: any = new Error('AI service is temporarily unavailable. Please try again later.')
+      error.status = response.status
+      throw error
+    }
+    const error: any = new Error(`Unexpected server response (${response.status}).`)
+    error.status = response.status
+    throw error
+  }
+
+  if (!response.ok || json?.error) {
+    const error: any = new Error(json?.error || `AI request failed (${response.status})`)
+    error.status = response.status
+    error.errorCategory = json?.errorCategory
+    error.rateLimited = json?.rateLimited
+    error.retryAfterSeconds = json?.retryAfterSeconds
+    throw error
+  }
+
+  return json.data
+}
+
 // ─── Text Extraction ──────────────────────────────────────────
 
 export async function extractRecipeFromText(
@@ -44,24 +124,12 @@ export async function extractRecipeFromText(
   const headers = await getAuthHeaders()
   const baseUrl = getApiBaseUrl()
 
-  const response = await fetch(`${baseUrl}/api/ai/extract-text`, {
+  return safeAiFetch(`${baseUrl}/api/ai/extract-text`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ text }),
     signal,
   })
-
-  const json = await response.json()
-
-  if (!response.ok || json.error) {
-    const error: any = new Error(json.error || `Extraction failed (${response.status})`)
-    error.status = response.status
-    error.rateLimited = json.rateLimited
-    error.retryAfterSeconds = json.retryAfterSeconds
-    throw error
-  }
-
-  return json.data
 }
 
 // ─── Image Extraction ─────────────────────────────────────────
@@ -74,24 +142,12 @@ export async function extractRecipeFromImage(
   const headers = await getAuthHeaders()
   const baseUrl = getApiBaseUrl()
 
-  const response = await fetch(`${baseUrl}/api/ai/extract-image`, {
+  return safeAiFetch(`${baseUrl}/api/ai/extract-image`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ base64Data, mimeType }),
     signal,
   })
-
-  const json = await response.json()
-
-  if (!response.ok || json.error) {
-    const error: any = new Error(json.error || `Image extraction failed (${response.status})`)
-    error.status = response.status
-    error.rateLimited = json.rateLimited
-    error.retryAfterSeconds = json.retryAfterSeconds
-    throw error
-  }
-
-  return json.data
 }
 
 // ─── Recipe Modification ──────────────────────────────────────
@@ -103,24 +159,12 @@ export async function modifyRecipe(
   const headers = await getAuthHeaders()
   const baseUrl = getApiBaseUrl()
 
-  const response = await fetch(`${baseUrl}/api/ai/modify-recipe`, {
+  return safeAiFetch(`${baseUrl}/api/ai/modify-recipe`, {
     method: 'POST',
     headers,
     body: JSON.stringify(input),
     signal,
   })
-
-  const json = await response.json()
-
-  if (!response.ok || json.error) {
-    const error: any = new Error(json.error || `Modification failed (${response.status})`)
-    error.status = response.status
-    error.rateLimited = json.rateLimited
-    error.retryAfterSeconds = json.retryAfterSeconds
-    throw error
-  }
-
-  return json.data
 }
 
 // ─── AI Chef Chat ─────────────────────────────────────────────
@@ -138,24 +182,12 @@ export async function sendChatMessage(
   if (conversationId) body.conversationId = conversationId
   if (recipeId) body.recipeId = recipeId
 
-  const response = await fetch(`${baseUrl}/api/ai/chat`, {
+  return safeAiFetch(`${baseUrl}/api/ai/chat`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
     signal,
   })
-
-  const json = await response.json()
-
-  if (!response.ok || json.error) {
-    const error: any = new Error(json.error || `Chat failed (${response.status})`)
-    error.status = response.status
-    error.rateLimited = json.rateLimited
-    error.retryAfterSeconds = json.retryAfterSeconds
-    throw error
-  }
-
-  return json.data
 }
 
 // ─── Conversation Management ──────────────────────────────────

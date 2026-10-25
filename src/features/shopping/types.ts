@@ -18,6 +18,11 @@ export interface ShoppingListWithItems extends ShoppingList {
   items: ShoppingListItem[]
 }
 
+export interface ShoppingListSummary extends ShoppingList {
+  itemCount: number
+  completedCount: number
+}
+
 export interface AisleSection {
   title: AisleCategory
   items: ShoppingListItem[]

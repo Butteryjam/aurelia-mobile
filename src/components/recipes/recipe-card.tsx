@@ -1,7 +1,7 @@
 import React from 'react'
 import { StyleSheet, View, Text, Pressable } from 'react-native'
 import { useRouter } from 'expo-router'
-import { Clock, ChefHat, Heart } from 'lucide-react-native'
+import { Clock, ChefHat, Heart, Check } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { useAureliaTheme } from '@/theme'
 import { AureliaImage } from '@/components/common/aurelia-image'
@@ -11,18 +11,29 @@ interface RecipeCardProps {
   recipe: RecipeListItem
   onToggleFavorite?: (recipeId: string, currentStatus: boolean) => void
   isFavoriteLoading?: boolean
+  isSelectionMode?: boolean
+  isSelected?: boolean
+  onToggleSelect?: (recipeId: string) => void
 }
 
 export function RecipeCard({
   recipe,
   onToggleFavorite,
   isFavoriteLoading = false,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelect,
 }: RecipeCardProps) {
   const router = useRouter()
   const { colors, typography, spacing, radii, shadows } = useAureliaTheme()
 
   const handleCardPress = () => {
-    router.push(`/(app)/recipe/${recipe.id}`)
+    if (isSelectionMode) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+      onToggleSelect?.(recipe.id)
+    } else {
+      router.push(`/(app)/recipe/${recipe.id}`)
+    }
   }
 
   const handleFavoritePress = () => {
@@ -40,8 +51,9 @@ export function RecipeCard({
         styles.cardContainer,
         shadows.card,
         {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
+          backgroundColor: isSelected ? colors.primary + '08' : colors.card,
+          borderColor: isSelected ? colors.primary : colors.border,
+          borderWidth: isSelected ? 2 : 1,
           borderRadius: radii.card,
           position: 'relative',
         },
@@ -50,8 +62,13 @@ export function RecipeCard({
       <Pressable
         onPress={handleCardPress}
         style={({ pressed }) => [{ opacity: pressed ? 0.94 : 1 }]}
-        accessibilityRole="button"
-        accessibilityLabel={`${recipe.title}, recipe card. Cook time: ${recipe.cook_time || 'unspecified'} minutes.`}
+        accessibilityRole={isSelectionMode ? 'checkbox' : 'button'}
+        accessibilityState={isSelectionMode ? { checked: isSelected } : undefined}
+        accessibilityLabel={
+          isSelectionMode
+            ? `${isSelected ? 'Selected' : 'Not selected'}: ${recipe.title}`
+            : `${recipe.title}, recipe card. Cook time: ${recipe.cook_time || 'unspecified'} minutes.`
+        }
       >
         {/* Recipe Hero Media */}
         <View style={[styles.imageWrapper, { borderTopLeftRadius: radii.card, borderTopRightRadius: radii.card }]}>
@@ -62,6 +79,22 @@ export function RecipeCard({
             accessibilityLabel={recipe.title}
           />
 
+          {/* Selection Mode Checkbox Badge (Top-Left) */}
+          {isSelectionMode && (
+            <View
+              style={[
+                styles.selectionCheckbox,
+                {
+                  backgroundColor: isSelected ? colors.primary : colors.card + 'F0',
+                  borderColor: isSelected ? colors.primary : colors.border,
+                  borderRadius: radii.small,
+                },
+              ]}
+            >
+              {isSelected && <Check size={16} color={colors.primaryForeground} strokeWidth={3} />}
+            </View>
+          )}
+
           {/* Category / Cuisine Pill */}
           {recipe.cuisine && (
             <View
@@ -71,6 +104,7 @@ export function RecipeCard({
                   backgroundColor: colors.card + 'E6',
                   borderColor: colors.border,
                   borderRadius: radii.small,
+                  left: isSelectionMode ? 10 : 10,
                 },
               ]}
             >
@@ -155,8 +189,8 @@ export function RecipeCard({
         </View>
       </Pressable>
 
-      {/* Favorite Heart Button (Sibling to Pressable, not child) */}
-      {onToggleFavorite && (
+      {/* Favorite Heart Button (Hidden in selection mode) */}
+      {!isSelectionMode && onToggleFavorite && (
         <Pressable
           onPress={handleFavoritePress}
           disabled={isFavoriteLoading}
@@ -186,7 +220,6 @@ export function RecipeCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    borderWidth: 1,
     overflow: 'hidden',
     marginVertical: 8,
   },
@@ -197,6 +230,17 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
+  },
+  selectionCheckbox: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    width: 28,
+    height: 28,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 15,
   },
   favoriteButton: {
     position: 'absolute',

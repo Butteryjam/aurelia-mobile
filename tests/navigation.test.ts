@@ -120,7 +120,7 @@ describe('Mobile Navigation Shell & Routing Tests', () => {
       const routes = MORE_HUB_ITEMS.map((item) => item.route)
       expect(routes).toEqual([
         '/(app)/collections',
-        '/(app)/shopping/active',
+        '/(app)/shopping',
         '/(app)/favorites',
         '/(app)/settings',
       ])

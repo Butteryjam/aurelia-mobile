@@ -172,13 +172,19 @@ export default function ShoppingListScreen() {
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border + '60' }]}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back()
+              } else {
+                router.replace('/(app)/shopping')
+              }
+            }}
             style={({ pressed }) => [
               styles.navBackButton,
               { opacity: pressed ? 0.6 : 1 },
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel="Back to shopping lists"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <ChevronLeft size={24} color={colors.foreground} />

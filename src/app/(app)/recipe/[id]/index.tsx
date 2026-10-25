@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   Share,
+  Alert,
+  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -22,10 +24,11 @@ import {
   Pencil,
   Wand2,
   ShoppingCart,
+  Trash2,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { useAureliaTheme } from '@/theme'
-import { useRecipeDetail, useToggleFavorite } from '@/features/recipes/hooks'
+import { useRecipeDetail, useToggleFavorite, useDeleteRecipe } from '@/features/recipes/hooks'
 import { useActiveShoppingList, useAddRecipeToShoppingList } from '@/features/shopping/hooks'
 import { AureliaImage } from '@/components/common/aurelia-image'
 import { ServingScaler } from '@/components/recipes/serving-scaler'
@@ -43,6 +46,7 @@ export default function RecipeDetailScreen() {
 
   const { data: recipe, isLoading, isError, refetch } = useRecipeDetail(id as string)
   const toggleFavorite = useToggleFavorite()
+  const deleteRecipeMutation = useDeleteRecipe()
   const { data: activeShoppingList } = useActiveShoppingList()
   const addRecipeToShopping = useAddRecipeToShoppingList()
   const [shoppingNotice, setShoppingNotice] = useState<string | null>(null)
@@ -51,6 +55,35 @@ export default function RecipeDetailScreen() {
   const [servings, setServings] = useState<number>(4)
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set())
   const [modificationVisible, setModificationVisible] = useState(false)
+
+  const handleDeleteRecipe = () => {
+    if (deleteRecipeMutation?.isPending) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+    Alert.alert(
+      'Delete this recipe?',
+      'This recipe will be permanently deleted. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Recipe',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteRecipeMutation.mutateAsync(id as string)
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+              if (router.canGoBack()) {
+                router.back()
+              } else {
+                router.replace('/(app)/(tabs)/recipes')
+              }
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Could not delete recipe.')
+            }
+          },
+        },
+      ]
+    )
+  }
 
   const handleAddToShopping = async () => {
     if (!recipe || !activeShoppingList) return
@@ -281,6 +314,30 @@ export default function RecipeDetailScreen() {
               color={recipe.isFavorite ? colors.primary : colors.mutedForeground}
               fill={recipe.isFavorite ? colors.primary : 'transparent'}
             />
+          </Pressable>
+
+          <Pressable
+            onPress={handleDeleteRecipe}
+            disabled={deleteRecipeMutation?.isPending ?? false}
+            style={({ pressed }) => [
+              styles.navButton,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.destructive + '40',
+                borderRadius: radii.pill,
+                opacity: pressed ? 0.7 : 1,
+                marginLeft: 8,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Delete recipe"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            {deleteRecipeMutation?.isPending ? (
+              <ActivityIndicator size="small" color={colors.destructive} />
+            ) : (
+              <Trash2 size={18} color={colors.destructive} />
+            )}
           </Pressable>
         </View>
       </View>

@@ -8,6 +8,8 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  Alert,
+  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -19,6 +21,9 @@ import {
   BookOpen,
   ArrowUpDown,
   Sparkles,
+  Trash2,
+  Check,
+  Minus,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { useAureliaTheme } from '@/theme'
@@ -26,6 +31,7 @@ import {
   useRecipes,
   useRecipeFilterOptions,
   useToggleFavorite,
+  useBulkDeleteRecipes,
 } from '@/features/recipes/hooks'
 import { RecipeCard } from '@/components/recipes/recipe-card'
 import { FilterBottomSheet } from '@/components/recipes/filter-bottom-sheet'
@@ -80,6 +86,76 @@ export default function RecipesTabScreen() {
   const { data: recipes, isLoading, isError, refetch, isRefetching } = useRecipes(activeFilters)
   const { data: filterOptions } = useRecipeFilterOptions()
   const toggleFavorite = useToggleFavorite()
+  const bulkDeleteMutation = useBulkDeleteRecipes()
+
+  // Selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // Scoped selection calculations
+  const allSelected = useMemo(
+    () => Boolean(recipes && recipes.length > 0 && recipes.every((r) => selectedIds.has(r.id))),
+    [recipes, selectedIds]
+  )
+  const someSelected = useMemo(
+    () => Boolean(recipes && recipes.some((r) => selectedIds.has(r.id)) && !allSelected),
+    [recipes, selectedIds, allSelected]
+  )
+
+  const handleToggleSelectAll = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+    if (allSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set((recipes ?? []).map((r) => r.id)))
+    }
+  }
+
+  const handleToggleRecipe = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const handleExitSelectionMode = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+    setIsSelectionMode(false)
+    setSelectedIds(new Set())
+  }
+
+  const handleBulkDelete = () => {
+    const count = selectedIds.size
+    if (count === 0 || bulkDeleteMutation?.isPending) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+
+    Alert.alert(
+      `Delete ${count} ${count === 1 ? 'recipe' : 'recipes'}?`,
+      'The selected recipes will be permanently deleted. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Delete ${count} ${count === 1 ? 'Recipe' : 'Recipes'}`,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await bulkDeleteMutation.mutateAsync(Array.from(selectedIds))
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+              setSelectedIds(new Set())
+              setIsSelectionMode(false)
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Could not delete recipes.')
+            }
+          },
+        },
+      ]
+    )
+  }
 
   // Calculate active filters count
   const activeFilterCount = useMemo(() => {
@@ -138,6 +214,41 @@ export default function RecipesTabScreen() {
         </View>
 
         <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+              if (isSelectionMode) {
+                handleExitSelectionMode()
+              } else {
+                setIsSelectionMode(true)
+                setSelectedIds(new Set())
+              }
+            }}
+            disabled={!recipes || recipes.length === 0}
+            style={({ pressed }) => [
+              styles.headerSelectBtn,
+              {
+                backgroundColor: isSelectionMode ? colors.primary : colors.card,
+                borderColor: isSelectionMode ? colors.primary : colors.border,
+                borderRadius: radii.pill,
+                opacity: pressed ? 0.8 : 1,
+                marginRight: 8,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={isSelectionMode ? 'Exit selection mode' : 'Enter selection mode'}
+          >
+            <Text
+              style={{
+                color: isSelectionMode ? colors.primaryForeground : colors.foreground,
+                fontSize: 13,
+                fontWeight: '600',
+              }}
+            >
+              {isSelectionMode ? 'Done' : 'Select'}
+            </Text>
+          </Pressable>
+
           <Pressable
             onPress={() => router.push('/(app)/recipe/new')}
             style={({ pressed }) => [
@@ -376,6 +487,113 @@ export default function RecipesTabScreen() {
         </ScrollView>
       </View>
 
+      {/* Bulk Selection Bar */}
+      {isSelectionMode && recipes && recipes.length > 0 && (
+        <View
+          style={[
+            styles.selectionBar,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: radii.card,
+            },
+          ]}
+        >
+          <View style={styles.selectionBarLeft}>
+            <Pressable
+              onPress={handleToggleSelectAll}
+              style={[
+                styles.selectAllControl,
+                {
+                  backgroundColor: allSelected ? colors.primary : colors.secondary,
+                  borderColor: allSelected ? colors.primary : colors.border,
+                  borderRadius: radii.small,
+                },
+              ]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: allSelected }}
+            >
+              {allSelected ? (
+                <Check size={14} color={colors.primaryForeground} strokeWidth={3} />
+              ) : someSelected ? (
+                <Minus size={14} color={colors.foreground} strokeWidth={3} />
+              ) : null}
+              <Text
+                style={{
+                  color: allSelected ? colors.primaryForeground : colors.foreground,
+                  fontSize: 12,
+                  fontWeight: '600',
+                  marginLeft: 5,
+                }}
+              >
+                {allSelected ? 'Deselect All' : `Select All (${recipes.length})`}
+              </Text>
+            </Pressable>
+
+            <Text
+              style={[
+                typography.caption,
+                { color: colors.mutedForeground, marginLeft: 10, fontSize: 12 },
+              ]}
+            >
+              {selectedIds.size} {selectedIds.size === 1 ? 'recipe' : 'recipes'} selected
+            </Text>
+          </View>
+
+          <View style={styles.selectionBarRight}>
+            <Pressable
+              onPress={handleBulkDelete}
+              disabled={selectedIds.size === 0 || (bulkDeleteMutation?.isPending ?? false)}
+              style={({ pressed }) => [
+                styles.deleteSelectedButton,
+                {
+                  backgroundColor: selectedIds.size > 0 ? colors.destructive : colors.muted,
+                  borderRadius: radii.small,
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${selectedIds.size} selected recipes`}
+            >
+              {bulkDeleteMutation?.isPending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Trash2
+                    size={14}
+                    color={selectedIds.size > 0 ? '#FFFFFF' : colors.mutedForeground}
+                  />
+                  <Text
+                    style={{
+                      color: selectedIds.size > 0 ? '#FFFFFF' : colors.mutedForeground,
+                      fontSize: 12,
+                      fontWeight: '600',
+                      marginLeft: 5,
+                    }}
+                  >
+                    Delete ({selectedIds.size})
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={handleExitSelectionMode}
+              style={({ pressed }) => [
+                styles.cancelSelectionButton,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel selection mode"
+            >
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, fontWeight: '500' }}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {/* 4. Recipe Catalog List */}
       {isLoading ? (
         <ScrollView contentContainerStyle={styles.listContent}>
@@ -401,6 +619,9 @@ export default function RecipesTabScreen() {
               recipe={item}
               onToggleFavorite={handleFavoriteToggle}
               isFavoriteLoading={toggleFavorite.isPending}
+              isSelectionMode={isSelectionMode}
+              isSelected={selectedIds.has(item.id)}
+              onToggleSelect={handleToggleRecipe}
             />
           )}
           contentContainerStyle={styles.listContent}
@@ -478,6 +699,50 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  headerSelectBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionBar: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    padding: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectionBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectAllControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+  },
+  selectionBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deleteSelectedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  cancelSelectionButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   iconButton: {
     width: 38,

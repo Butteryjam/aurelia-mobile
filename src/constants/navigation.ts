@@ -51,7 +51,7 @@ export const MORE_HUB_ITEMS: HubItem[] = [
     id: 'shopping',
     title: 'Shopping',
     subtitle: 'Consolidated grocery lists and aisles',
-    route: '/(app)/shopping/active',
+    route: '/(app)/shopping',
     icon: ShoppingCart,
   },
   {

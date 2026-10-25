@@ -8,6 +8,8 @@ import {
   fetchShoppingList,
   fetchUserShoppingLists,
   createShoppingList,
+  deleteShoppingList,
+  renameShoppingList,
   toggleItemChecked,
   addManualShoppingItem,
   deleteShoppingItem,
@@ -15,7 +17,7 @@ import {
   generateShoppingItemsFromMealPlan,
   addRecipeToShoppingList,
 } from './api'
-import type { ShoppingListWithItems, ShoppingList } from './types'
+import type { ShoppingListWithItems } from './types'
 
 export const SHOPPING_KEYS = {
   all: ['shopping-lists'] as const,
@@ -53,7 +55,7 @@ export function useUserShoppingLists() {
   return useQuery({
     queryKey: SHOPPING_KEYS.all,
     queryFn: fetchUserShoppingLists,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 2,
   })
 }
 
@@ -65,8 +67,41 @@ export function useCreateShoppingList() {
 
   return useMutation({
     mutationFn: (name: string) => createShoppingList(name),
-    onSuccess: (newList) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+    },
+  })
+}
+
+/**
+ * Mutation to delete a shopping list.
+ */
+export function useDeleteShoppingList() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (listId: string) => deleteShoppingList(listId),
+    onSuccess: (_data, listId) => {
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.all })
+      queryClient.removeQueries({ queryKey: SHOPPING_KEYS.list(listId) })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
+    },
+  })
+}
+
+/**
+ * Mutation to rename an existing shopping list.
+ */
+export function useRenameShoppingList() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ listId, newName }: { listId: string; newName: string }) =>
+      renameShoppingList(listId, newName),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.list(updated.id) })
       queryClient.invalidateQueries({ queryKey: SHOPPING_KEYS.active })
     },
   })

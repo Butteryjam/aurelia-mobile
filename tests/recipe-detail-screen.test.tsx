@@ -124,6 +124,12 @@ describe('Aurelia Mobile — RecipeDetailScreen Suite', () => {
       mutate: vi.fn(),
       isPending: false,
     } as any)
+
+    vi.mocked(recipeHooks.useDeleteRecipe).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as any)
   })
 
   function renderMarkup() {

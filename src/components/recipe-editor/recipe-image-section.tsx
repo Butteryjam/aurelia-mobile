@@ -41,7 +41,6 @@ export function RecipeImageSection({ imageUrl, onChange }: Props) {
     } catch (err: any) {
       console.warn('[handlePickFromLibrary] upload failed:', err)
       setErrorMessage(err.message || 'Image upload failed. Please try again.')
-      setLocalPreviewUri(null)
     } finally {
       setIsUploading(false)
     }
@@ -62,7 +61,6 @@ export function RecipeImageSection({ imageUrl, onChange }: Props) {
     } catch (err: any) {
       console.warn('[handleCaptureCamera] camera upload failed:', err)
       setErrorMessage(err.message || 'Could not upload photo from camera.')
-      setLocalPreviewUri(null)
     } finally {
       setIsUploading(false)
     }

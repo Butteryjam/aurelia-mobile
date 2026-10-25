@@ -7,6 +7,7 @@ import type {
   ShoppingList,
   ShoppingListWithItems,
   ShoppingListItem,
+  ShoppingListSummary,
 } from './types'
 import {
   parseManualItem,
@@ -16,23 +17,91 @@ import {
 import { scaleQuantity } from '@/lib/quantity-scaler'
 
 /**
- * Fetch all shopping lists for the current user.
+ * Fetch all shopping lists for the current user with item count and progress stats.
  */
-export async function fetchUserShoppingLists(): Promise<ShoppingList[]> {
+export async function fetchUserShoppingLists(): Promise<ShoppingListSummary[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) throw new Error('You must be signed in.')
 
-  const { data, error } = await supabase
+  const { data: lists, error: listsError } = await supabase
     .from('shopping_lists')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
+  if (listsError) throw new Error(listsError.message)
+  if (!lists || lists.length === 0) return []
+
+  const listIds = lists.map((l) => l.id)
+  const { data: items, error: itemsError } = await supabase
+    .from('shopping_list_items')
+    .select('id, shopping_list_id, is_checked')
+    .in('shopping_list_id', listIds)
+
+  if (itemsError) throw new Error(itemsError.message)
+
+  const statsMap = new Map<string, { total: number; completed: number }>()
+  items?.forEach((it) => {
+    const cur = statsMap.get(it.shopping_list_id) || { total: 0, completed: 0 }
+    cur.total += 1
+    if (it.is_checked) cur.completed += 1
+    statsMap.set(it.shopping_list_id, cur)
+  })
+
+  return lists.map((l) => {
+    const stats = statsMap.get(l.id) || { total: 0, completed: 0 }
+    return {
+      ...l,
+      itemCount: stats.total,
+      completedCount: stats.completed,
+    }
+  })
+}
+
+/**
+ * Delete a shopping list and cascade delete all its items.
+ */
+export async function deleteShoppingList(listId: string): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error('You must be signed in.')
+
+  const { error } = await supabase
+    .from('shopping_lists')
+    .delete()
+    .eq('id', listId)
+    .eq('user_id', user.id)
+
   if (error) throw new Error(error.message)
-  return data ?? []
+}
+
+/**
+ * Rename an existing shopping list.
+ */
+export async function renameShoppingList(listId: string, newName: string): Promise<ShoppingList> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error('You must be signed in.')
+  const trimmed = newName.trim()
+  if (!trimmed) throw new Error('List name cannot be empty.')
+
+  const { data, error } = await supabase
+    .from('shopping_lists')
+    .update({ name: trimmed })
+    .eq('id', listId)
+    .eq('user_id', user.id)
+    .select('*')
+    .single()
+
+  if (error || !data) throw new Error(error?.message || 'Failed to rename list.')
+  return data
 }
 
 /**

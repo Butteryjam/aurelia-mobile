@@ -112,7 +112,8 @@ export default function ImportRecipeScreen() {
         err.status || null,
         err.message,
         err.rateLimited,
-        err.retryAfterSeconds
+        err.retryAfterSeconds,
+        err.errorCategory
       )
       setExtractionError(errorInfo.message)
       setStage('error')
@@ -181,7 +182,8 @@ export default function ImportRecipeScreen() {
         err.status || null,
         err.message,
         err.rateLimited,
-        err.retryAfterSeconds
+        err.retryAfterSeconds,
+        err.errorCategory
       )
       setExtractionError(errorInfo.message)
       setStage('error')
