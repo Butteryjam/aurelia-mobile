@@ -111,7 +111,7 @@ export default function RecipesTabScreen() {
     }
   }
 
-  const handleToggleRecipe = (id: string) => {
+  const handleToggleRecipe = React.useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -121,7 +121,7 @@ export default function RecipesTabScreen() {
       }
       return next
     })
-  }
+  }, [])
 
   const handleExitSelectionMode = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
@@ -168,9 +168,12 @@ export default function RecipesTabScreen() {
     return count
   }, [filters])
 
-  const handleFavoriteToggle = (recipeId: string, currentStatus: boolean) => {
-    toggleFavorite.mutate({ recipeId, isCurrentlyFavorite: currentStatus })
-  }
+  const handleFavoriteToggle = React.useCallback(
+    (recipeId: string, currentStatus: boolean) => {
+      toggleFavorite.mutate({ recipeId, isCurrentlyFavorite: currentStatus })
+    },
+    [toggleFavorite]
+  )
 
   const handleClearSearch = () => {
     setSearchInput('')
@@ -625,6 +628,10 @@ export default function RecipesTabScreen() {
             />
           )}
           contentContainerStyle={styles.listContent}
+          initialNumToRender={6}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={true}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}

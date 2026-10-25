@@ -16,7 +16,7 @@ interface RecipeCardProps {
   onToggleSelect?: (recipeId: string) => void
 }
 
-export function RecipeCard({
+export const RecipeCard = React.memo(function RecipeCard({
   recipe,
   onToggleFavorite,
   isFavoriteLoading = false,
@@ -216,7 +216,7 @@ export function RecipeCard({
       )}
     </View>
   )
-}
+})
 
 const styles = StyleSheet.create({
   cardContainer: {

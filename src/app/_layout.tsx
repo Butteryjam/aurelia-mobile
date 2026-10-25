@@ -4,17 +4,13 @@ import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { QueryClientProvider } from '@tanstack/react-query'
-import {
-  useFonts,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_600SemiBold,
-  PlayfairDisplay_400Regular,
-} from '@expo-google-fonts/playfair-display'
-import {
-  DMSans_400Regular,
-  DMSans_500Medium,
-  DMSans_700Bold,
-} from '@expo-google-fonts/dm-sans'
+import { useFonts } from 'expo-font'
+import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display/700Bold'
+import { PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display/600SemiBold'
+import { PlayfairDisplay_400Regular } from '@expo-google-fonts/playfair-display/400Regular'
+import { DMSans_400Regular } from '@expo-google-fonts/dm-sans/400Regular'
+import { DMSans_500Medium } from '@expo-google-fonts/dm-sans/500Medium'
+import { DMSans_700Bold } from '@expo-google-fonts/dm-sans/700Bold'
 import { queryClient } from '@/lib/query-client'
 import { AuthProvider, useAuth } from '@/features/auth/auth-context'
 import { AuthBootstrapScreen } from '@/components/auth/auth-bootstrap'
